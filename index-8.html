@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FloodWatch · Rain Gauge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #080e14;
+    --panel: #0d1820;
+    --panel2: #111f2b;
+    --border: #1a3040;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --warn: #ff6b35;
+    --text: #c8dde8;
+    --text-dim: #4a6a7a;
+    --text-bright: #eaf6ff;
+    --rain-low: #3b82f6;
+    --rain-mid: #06b6d4;
+    --rain-high: #f59e0b;
+    --rain-extreme: #ef4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 52px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 1000;
+    position: relative;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon { width: 28px; height: 28px; }
+  .logo-icon svg { width: 100%; height: 100%; }
+
+  .logo-text {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: -0.02em;
+  }
+  .logo-text span { color: var(--accent); }
+
+  .header-center {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent2);
+    letter-spacing: 0.1em;
+  }
+
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: pulse 2s infinite;
+  }
+
+  .utc-clock {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  /* MAIN LAYOUT */
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 285px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* LAYER SELECTOR */
+  .layer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .layer-btn {
+    padding: 8px 6px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .layer-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .layer-btn.active {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .layer-btn .lb-period {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+    color: inherit;
+    margin-bottom: 2px;
+  }
+
+  /* DATA READOUT */
+  .readout-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .readout-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+    border-radius: 2px 0 0 2px;
+    transition: background 0.3s;
+  }
+
+  .readout-card.error-state::before { background: var(--warn); }
+
+  .readout-value {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--text-bright);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    transition: color 0.2s;
+  }
+
+  .readout-value.no-data { font-size: 18px; color: var(--text-dim); font-weight: 400; }
+  .readout-value.error { font-size: 14px; color: var(--warn); font-weight: 400; }
+
+  .readout-unit {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+
+  .readout-coords {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 6px;
+  }
+
+  .readout-timestamp {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 3px;
+    opacity: 0.7;
+  }
+
+  /* RAIN BAR */
+  .rain-bar-wrap { margin-top: 10px; }
+
+  .rain-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .rain-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--rain-low), var(--rain-mid), var(--rain-high));
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0%;
+  }
+
+  .rain-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--text-dim);
+  }
+
+  /* INTENSITY */
+  .intensity-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .intensity-dots { display: flex; gap: 3px; }
+
+  .intensity-dot {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .intensity-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* UNIT TOGGLE */
+  .unit-toggle {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .unit-btn {
+    flex: 1;
+    padding: 4px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.12s;
+    letter-spacing: 0.05em;
+  }
+
+  .unit-btn.active {
+    background: rgba(0,212,255,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* SAVED LOCATIONS */
+  .saved-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px;
+  }
+
+  .saved-list::-webkit-scrollbar { width: 3px; }
+  .saved-list::-webkit-scrollbar-track { background: transparent; }
+  .saved-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .saved-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.12s;
+    margin-bottom: 4px;
+  }
+
+  .saved-item:hover { background: var(--panel2); border-color: var(--border); }
+  .saved-item.active {
+    background: rgba(0,212,255,0.07);
+    border-color: rgba(0,212,255,0.3);
+  }
+
+  .saved-item-left { display: flex; align-items: center; gap: 8px; }
+
+  .saved-pin {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .saved-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+    line-height: 1.2;
+  }
+
+  .saved-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 1px;
+  }
+
+  .saved-rain {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 500;
+    min-width: 36px;
+    text-align: right;
+  }
+
+  .saved-rain.loading { color: var(--text-dim); }
+  .saved-rain.error-val { color: var(--warn); font-size: 9px; }
+
+  .add-location-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 6px;
+  }
+
+  .add-location-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* MAP */
+  #map { flex: 1; position: relative; }
+
+  /* MAP OVERLAYS */
+  .map-overlay {
+    position: absolute;
+    z-index: 500;
+    pointer-events: none;
+  }
+
+  .map-top-bar {
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(8,14,20,0.88);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    letter-spacing: 0.06em;
+  }
+
+  .map-top-bar span { color: var(--accent); }
+
+  .map-legend {
+    bottom: 28px;
+    right: 12px;
+    background: rgba(8,14,20,0.9);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    pointer-events: auto;
+  }
+
+  .legend-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    margin-bottom: 7px;
+    text-transform: uppercase;
+  }
+
+  .legend-bar {
+    width: 160px; height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg,
+      #3b82f6 0%, #06b6d4 25%, #00ff9d 50%, #f59e0b 75%, #ef4444 100%
+    );
+    margin-bottom: 4px;
+  }
+
+  .legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--text-dim);
+  }
+
+  /* QUERYING BADGE */
+  .querying-badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    z-index: 500;
+    background: rgba(8,14,20,0.9);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .querying-badge.show { display: flex; }
+
+  .spin {
+    width: 10px; height: 10px;
+    border: 1.5px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* CLICK PULSE */
+  @keyframes clickPulse {
+    0% { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+    100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }
+  }
+
+  .click-pulse {
+    position: absolute;
+    width: 20px; height: 20px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: clickPulse 0.6s ease-out forwards;
+    z-index: 600;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--text-bright);
+    z-index: 9999;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.warn { border-color: var(--warn); color: var(--warn); }
+
+  /* LEAFLET OVERRIDES */
+  .leaflet-control-attribution {
+    background: rgba(8,14,20,0.75) !important;
+    color: var(--text-dim) !important;
+    font-size: 8px !important;
+  }
+
+  .leaflet-control-zoom a {
+    background: var(--panel) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+  }
+
+  .leaflet-control-zoom a:hover {
+    background: var(--panel2) !important;
+    color: var(--accent) !important;
+  }
+
+  .leaflet-popup-content-wrapper {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+    color: var(--text) !important;
+    font-family: 'Outfit', sans-serif !important;
+  }
+
+  .leaflet-popup-tip { background: var(--panel) !important; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.show { opacity: 1; pointer-events: auto; }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: 300px;
+    transform: scale(0.95);
+    transition: transform 0.2s;
+  }
+
+  .modal-overlay.show .modal { transform: scale(1); }
+
+  .modal-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-bright);
+    margin-bottom: 16px;
+  }
+
+  .modal-input {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-bright);
+    font-family: 'Outfit', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    margin-bottom: 12px;
+  }
+
+  .modal-input:focus { border-color: var(--accent); }
+
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    transition: all 0.15s;
+  }
+
+  .btn:hover { background: var(--panel2); }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+  }
+
+  .btn-primary:hover { background: #00b8d9; border-color: #00b8d9; }
+
+  /* CONTEXT MENU */
+  .ctx-menu {
+    position: fixed;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px;
+    z-index: 8000;
+    min-width: 185px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    display: none;
+  }
+
+  .ctx-menu.show { display: block; }
+
+  .ctx-coords {
+    padding: 6px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .ctx-item {
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    transition: background 0.1s;
+  }
+
+  .ctx-item:hover { background: var(--panel2); color: var(--accent); }
+
+  /* DATA SOURCE NOTE */
+  .data-note {
+    padding: 8px 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    border-top: 1px solid var(--border);
+    line-height: 1.5;
+  }
+
+  .data-note a { color: var(--accent); text-decoration: none; }
+  .data-note a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="#1a3040" stroke-width="1.5"/>
+        <path d="M8 18 Q10 12 14 10 Q18 8 20 14 Q22 16 20 18" stroke="#00d4ff" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M9 22 L9 24M13 22 L13 25M17 22 L17 24M21 22 L21 25" stroke="#00d4ff" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M6 18 Q9 16 12 18 Q15 20 18 18 Q21 16 22 18" stroke="#00ff9d" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.6"/>
+      </svg>
+    </div>
+    <span class="logo-text">Flood<span>Watch</span></span>
+  </div>
+  <div class="header-center">MRMS QPE · NOAA / IEM · NEAR REAL-TIME</div>
+  <div class="header-right">
+    <div class="utc-clock" id="utc-clock">-- UTC</div>
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      LIVE
+    </div>
+  </div>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+
+    <!-- LAYER SELECT -->
+    <div class="panel-section">
+      <div class="section-label">Accumulation Period</div>
+      <div class="layer-grid">
+        <button class="layer-btn" onclick="setLayer('mrms_p1h','1hr QPE',this)">
+          <span class="lb-period">1hr</span>QPE
+        </button>
+        <button class="layer-btn" onclick="setLayer('mrms_p3h','3hr QPE',this)">
+          <span class="lb-period">3hr</span>QPE
+        </button>
+        <button class="layer-btn" onclick="setLayer('mrms_p6h','6hr QPE',this)">
+          <span class="lb-period">6hr</span>QPE
+        </button>
+        <button class="layer-btn" onclick="setLayer('mrms_p12h','12hr QPE',this)">
+          <span class="lb-period">12hr</span>QPE
+        </button>
+        <button class="layer-btn active" onclick="setLayer('mrms_p24h','24hr QPE',this)">
+          <span class="lb-period">24hr</span>QPE
+        </button>
+        <button class="layer-btn" onclick="setLayer('mrms_p48h','48hr QPE',this)">
+          <span class="lb-period">48hr</span>QPE
+        </button>
+        <button class="layer-btn" onclick="setLayer('mrms_p72h','72hr QPE',this)">
+          <span class="lb-period">72hr</span>QPE
+        </button>
+      </div>
+    </div>
+
+    <!-- DATA READOUT -->
+    <div class="panel-section">
+      <div class="section-label">Selected Point</div>
+      <div class="readout-card" id="readout-card">
+        <div class="readout-value no-data" id="readout-val">Click map</div>
+        <div class="readout-unit" id="readout-unit">— select a point to query</div>
+        <div class="readout-coords" id="readout-coords"></div>
+        <div class="readout-timestamp" id="readout-ts"></div>
+        <div class="rain-bar-wrap" id="rain-bar-wrap" style="display:none">
+          <div class="rain-bar">
+            <div class="rain-bar-fill" id="rain-bar-fill"></div>
+          </div>
+          <div class="rain-bar-labels" id="rain-bar-labels">
+            <span>0"</span><span>1"</span><span>3"</span><span>6"+</span>
+          </div>
+        </div>
+        <div class="intensity-row" id="intensity-row" style="display:none">
+          <div class="intensity-dots" id="intensity-dots">
+            <div class="intensity-dot"></div>
+            <div class="intensity-dot"></div>
+            <div class="intensity-dot"></div>
+            <div class="intensity-dot"></div>
+            <div class="intensity-dot"></div>
+          </div>
+          <div class="intensity-label" id="intensity-label">TRACE</div>
+        </div>
+        <div class="unit-toggle" id="unit-toggle" style="display:none">
+          <button class="unit-btn active" id="btn-in" onclick="setUnit('in')">inches</button>
+          <button class="unit-btn" id="btn-mm" onclick="setUnit('mm')">mm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAVED LOCATIONS -->
+    <div class="panel-section" style="border-bottom:none;padding-bottom:8px;">
+      <div class="section-label">Saved Locations</div>
+    </div>
+    <div class="saved-list" id="saved-list"></div>
+    <div style="padding:0 12px 10px;">
+      <button class="add-location-btn" id="add-loc-btn" onclick="promptSaveLocation()">
+        + Save current point
+      </button>
+    </div>
+
+    <!-- DATA SOURCE -->
+    <div class="data-note">
+      Data: <a href="https://mrms.ncep.noaa.gov" target="_blank">NOAA MRMS</a> via
+      <a href="https://mesonet.agron.iastate.edu" target="_blank">Iowa Env. Mesonet</a> ·
+      WMS QPE near real-time
+    </div>
+
+  </div>
+
+  <!-- MAP -->
+  <div id="map"></div>
+  <div class="map-overlay map-top-bar">
+    Click map to query · Right-click to save · Layer: <span id="layer-label">24hr QPE</span>
+  </div>
+  <div class="querying-badge" id="querying-badge">
+    <div class="spin"></div>
+    QUERYING MRMS...
+  </div>
+  <div class="map-overlay map-legend" style="bottom:28px;right:12px;">
+    <div class="legend-title" id="legend-title">Precip (in)</div>
+    <div class="legend-bar"></div>
+    <div class="legend-labels" id="legend-labels">
+      <span>0</span><span>0.5</span><span>1.5</span><span>3</span><span>6+</span>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-coords" id="ctx-coords"></div>
+  <div class="ctx-item" onclick="ctxQuery()">⬡ Query rainfall here</div>
+  <div class="ctx-item" onclick="ctxSave()">📍 Save this location</div>
+</div>
+
+<!-- SAVE MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">Save Location</div>
+    <input class="modal-input" id="modal-input" placeholder="Name this location..." maxlength="40"/>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSave()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const WMS_BASE = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/us/mrms_nn.cgi';
+const WMS_BASE_GREY = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/us/mrms.cgi';
+
+// Layer name → display label + max scale for legend
+const LAYERS = {
+  mrms_p1h:  { label: '1hr QPE',  maxIn: 3  },
+  mrms_p3h:  { label: '3hr QPE',  maxIn: 5  },
+  mrms_p6h:  { label: '6hr QPE',  maxIn: 6  },
+  mrms_p12h: { label: '12hr QPE', maxIn: 8  },
+  mrms_p24h: { label: '24hr QPE', maxIn: 10 },
+  mrms_p48h: { label: '48hr QPE', maxIn: 15 },
+  mrms_p72h: { label: '72hr QPE', maxIn: 20 },
+};
+
+const INTENSITY_LEVELS = [
+  { max: 0.01, label: 'NO DATA',  dots: 0, color: '#4a6a7a' },
+  { max: 0.1,  label: 'TRACE',   dots: 1, color: '#3b82f6' },
+  { max: 0.5,  label: 'LIGHT',   dots: 2, color: '#06b6d4' },
+  { max: 1.5,  label: 'MODERATE',dots: 3, color: '#00ff9d' },
+  { max: 3.0,  label: 'HEAVY',   dots: 4, color: '#f59e0b' },
+  { max: Infinity, label: 'EXTREME', dots: 5, color: '#ef4444' },
+];
+
+const PIN_COLORS = ['#00d4ff','#00ff9d','#ff6b35','#a78bfa','#fbbf24','#f472b6'];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const state = {
+  layer: 'mrms_p24h',
+  unit: 'in',          // 'in' or 'mm'
+  selectedLat: null,
+  selectedLng: null,
+  pendingLat: null,
+  pendingLng: null,
+  lastValueIn: null,   // last queried value in inches (for unit conversion)
+  savedLocations: JSON.parse(localStorage.getItem('fw_locations') || '[]'),
+  marker: null,
+  wmsLayer: null,
+  queryAbort: null,    // AbortController for in-flight queries
+};
+
+// ─── UTC CLOCK ────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2,'0');
+  const mm = String(now.getUTCMinutes()).padStart(2,'0');
+  const ss = String(now.getUTCSeconds()).padStart(2,'0');
+  document.getElementById('utc-clock').textContent = `${hh}:${mm}:${ss} UTC`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ─── MAP INIT ─────────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [27.8, -82.0],
+  zoom: 7,
+  zoomControl: true,
+});
+
+// Esri satellite basemap
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ', maxZoom: 19 }
+).addTo(map);
+
+// Optional: Esri place labels overlay on top of satellite
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  { attribution: '', maxZoom: 19, opacity: 0.7 }
+).addTo(map);
+
+// ─── WMS LAYER ────────────────────────────────────────────────────────────────
+function addWmsLayer() {
+  if (state.wmsLayer) map.removeLayer(state.wmsLayer);
+  state.wmsLayer = L.tileLayer.wms(WMS_BASE, {
+    layers: state.layer,
+    format: 'image/png',
+    transparent: true,
+    opacity: 0.70,
+    attribution: 'MRMS QPE &copy; NOAA/IEM',
+    version: '1.1.1',
+  }).addTo(map);
+}
+
+addWmsLayer();
+
+// ─── MAP EVENTS ───────────────────────────────────────────────────────────────
+map.on('click', (e) => {
+  const { lat, lng } = e.latlng;
+  state.pendingLat = lat;
+  state.pendingLng = lng;
+  placeMarker(lat, lng);
+  queryRainfall(lat, lng);
+  spawnClickPulse(e.originalEvent);
+  closeCtxMenu();
+});
+
+map.on('contextmenu', (e) => {
+  e.originalEvent.preventDefault();
+  state.pendingLat = e.latlng.lat;
+  state.pendingLng = e.latlng.lng;
+  showCtxMenu(e.originalEvent, e.latlng);
+});
+
+// ─── MARKER ───────────────────────────────────────────────────────────────────
+function placeMarker(lat, lng) {
+  if (state.marker) map.removeLayer(state.marker);
+  state.marker = L.circleMarker([lat, lng], {
+    radius: 7,
+    fillColor: '#00d4ff',
+    color: '#fff',
+    weight: 2,
+    fillOpacity: 1,
+  }).addTo(map);
+}
+
+// ─── REAL GetFeatureInfo QUERY ────────────────────────────────────────────────
+async function queryRainfall(lat, lng) {
+  state.selectedLat = lat;
+  state.selectedLng = lng;
+  state.lastValueIn = null;
+
+  // Cancel any in-flight request
+  if (state.queryAbort) state.queryAbort.abort();
+  state.queryAbort = new AbortController();
+
+  // UI: loading state
+  document.getElementById('querying-badge').classList.add('show');
+  const val = document.getElementById('readout-val');
+  val.textContent = '···';
+  val.className = 'readout-value';
+  document.getElementById('readout-unit').textContent = 'querying MRMS...';
+  document.getElementById('readout-coords').textContent =
+    `${lat.toFixed(4)}°N  ${Math.abs(lng).toFixed(4)}°W`;
+  document.getElementById('readout-ts').textContent = '';
+  document.getElementById('rain-bar-wrap').style.display = 'none';
+  document.getElementById('intensity-row').style.display = 'none';
+  document.getElementById('unit-toggle').style.display = 'none';
+  document.getElementById('readout-card').classList.remove('error-state');
+  document.getElementById('add-loc-btn').style.display = 'none';
+
+  // Build GetFeatureInfo URL
+  // We use a tiny 3x3 bbox around the point in EPSG:4326
+  const delta = 0.001;
+  const bbox = `${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
+  const params = new URLSearchParams({
+    SERVICE: 'WMS',
+    VERSION: '1.1.1',
+    REQUEST: 'GetFeatureInfo',
+    LAYERS: state.layer,
+    QUERY_LAYERS: state.layer,
+    STYLES: '',
+    BBOX: bbox,
+    WIDTH: '3',
+    HEIGHT: '3',
+    FORMAT: 'image/png',
+    INFO_FORMAT: 'text/plain',
+    X: '1',
+    Y: '1',
+    SRS: 'EPSG:4326',
+    EXCEPTIONS: 'application/vnd.ogc.se_xml',
+  });
+
+  const url = `${WMS_BASE}?${params}`;
+
+  try {
+    const res = await fetch(url, {
+      signal: state.queryAbort.signal,
+      headers: { 'Accept': 'text/plain, */*' },
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    const inches = parseFeatureInfo(text);
+
+    document.getElementById('querying-badge').classList.remove('show');
+
+    if (inches === null) {
+      showReadoutError('No data at this point');
+    } else {
+      state.lastValueIn = inches;
+      displayRainfall(inches);
+      document.getElementById('add-loc-btn').style.display = 'flex';
+    }
+
+    // Timestamp
+    const now = new Date();
+    document.getElementById('readout-ts').textContent =
+      `Queried ${now.toUTCString().slice(17,25)} UTC`;
+
+  } catch (err) {
+    if (err.name === 'AbortError') return; // user clicked elsewhere, ignore
+    document.getElementById('querying-badge').classList.remove('show');
+    console.warn('MRMS query error:', err);
+
+    // Graceful fallback message
+    showReadoutError('IEM unavailable — try again');
+    showToast('⚠ Could not reach MRMS data source', true);
+  }
+}
+
+// Parse IEM GetFeatureInfo plain text response
+// Response looks like:
+//   GetFeatureInfo results:
+//   Layer 'mrms_p24h'
+//   Feature 0:
+//     value_0 = '12.34'
+// or "no results" / missing data sentinel values
+function parseFeatureInfo(text) {
+  if (!text || text.trim() === '') return null;
+
+  // IEM returns value_0 = 'X.XX' (mm internally, then we convert)
+  // Actually IEM MRMS QPE returns values in mm
+  const match = text.match(/value_0\s*=\s*['"]?([\d.]+)['"]?/i);
+  if (!match) return null;
+
+  const raw = parseFloat(match[1]);
+  if (isNaN(raw)) return null;
+
+  // IEM MRMS QPE WMS GetFeatureInfo returns mm
+  // Sentinel: 255 or very large values = missing/no data
+  if (raw >= 250 || raw < 0) return null;
+
+  // Convert mm → inches
+  return raw / 25.4;
+}
+
+function showReadoutError(msg) {
+  const val = document.getElementById('readout-val');
+  val.textContent = msg;
+  val.className = 'readout-value error';
+  document.getElementById('readout-unit').textContent = '—';
+  document.getElementById('readout-card').classList.add('error-state');
+}
+
+// ─── DISPLAY RAINFALL ─────────────────────────────────────────────────────────
+function displayRainfall(inches) {
+  const isMetric = state.unit === 'mm';
+  const displayVal = isMetric ? (inches * 25.4) : inches;
+  const maxScale = LAYERS[state.layer].maxIn;
+
+  const val = document.getElementById('readout-val');
+
+  if (inches < 0.001) {
+    val.textContent = 'TRACE';
+    val.className = 'readout-value';
+    document.getElementById('readout-unit').textContent =
+      `< 0.03mm · ${LAYERS[state.layer].label}`;
+  } else {
+    val.textContent = isMetric
+      ? (inches * 25.4).toFixed(1) + ' mm'
+      : inches.toFixed(2) + '"';
+    val.className = 'readout-value';
+    document.getElementById('readout-unit').textContent =
+      `${isMetric ? 'millimeters' : 'inches'} · ${LAYERS[state.layer].label}`;
+  }
+
+  // Rain bar (always scale in inches)
+  const pct = Math.min(100, (inches / maxScale) * 100);
+  document.getElementById('rain-bar-wrap').style.display = 'block';
+  document.getElementById('rain-bar-labels').innerHTML = isMetric
+    ? `<span>0</span><span>${Math.round(maxScale*25.4*0.25)}mm</span><span>${Math.round(maxScale*25.4*0.5)}mm</span><span>${Math.round(maxScale*25.4)}mm+</span>`
+    : `<span>0"</span><span>${(maxScale*0.25).toFixed(1)}"</span><span>${(maxScale*0.5).toFixed(1)}"</span><span>${maxScale}"+</span>`;
+  setTimeout(() => {
+    document.getElementById('rain-bar-fill').style.width = pct + '%';
+  }, 50);
+
+  // Intensity
+  const level = INTENSITY_LEVELS.find(l => inches <= l.max) || INTENSITY_LEVELS[INTENSITY_LEVELS.length-1];
+  const dots = document.getElementById('intensity-dots').children;
+  for (let i = 0; i < dots.length; i++) {
+    dots[i].style.background = i < level.dots ? level.color : 'var(--border)';
+  }
+  document.getElementById('intensity-label').textContent = level.label;
+  document.getElementById('intensity-row').style.display = 'flex';
+
+  // Unit toggle
+  document.getElementById('unit-toggle').style.display = 'flex';
+
+  // Legend label
+  document.getElementById('legend-title').textContent =
+    isMetric ? 'Precip (mm)' : 'Precip (in)';
+}
+
+// ─── UNIT TOGGLE ─────────────────────────────────────────────────────────────
+function setUnit(unit) {
+  state.unit = unit;
+  document.getElementById('btn-in').classList.toggle('active', unit === 'in');
+  document.getElementById('btn-mm').classList.toggle('active', unit === 'mm');
+  if (state.lastValueIn !== null) displayRainfall(state.lastValueIn);
+  // Re-render saved location values
+  renderSavedRain();
+}
+
+// ─── LAYER SWITCHER ───────────────────────────────────────────────────────────
+function setLayer(layer, label, btn) {
+  state.layer = layer;
+  document.getElementById('layer-label').textContent = label;
+  document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  addWmsLayer();
+  // Re-query selected point with new layer
+  if (state.selectedLat !== null) queryRainfall(state.selectedLat, state.selectedLng);
+  // Re-load saved locations rain values
+  loadSavedRain();
+}
+
+// ─── CLICK PULSE ─────────────────────────────────────────────────────────────
+function spawnClickPulse(e) {
+  const mapEl = document.getElementById('map');
+  const rect = mapEl.getBoundingClientRect();
+  const pulse = document.createElement('div');
+  pulse.className = 'click-pulse';
+  pulse.style.left = (e.clientX - rect.left) + 'px';
+  pulse.style.top = (e.clientY - rect.top) + 'px';
+  mapEl.appendChild(pulse);
+  setTimeout(() => pulse.remove(), 700);
+}
+
+// ─── CONTEXT MENU ─────────────────────────────────────────────────────────────
+function showCtxMenu(e, latlng) {
+  const menu = document.getElementById('ctx-menu');
+  document.getElementById('ctx-coords').textContent =
+    `${latlng.lat.toFixed(4)}°N  ${Math.abs(latlng.lng).toFixed(4)}°W`;
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  menu.classList.add('show');
+}
+
+function closeCtxMenu() {
+  document.getElementById('ctx-menu').classList.remove('show');
+}
+
+function ctxQuery() {
+  closeCtxMenu();
+  placeMarker(state.pendingLat, state.pendingLng);
+  queryRainfall(state.pendingLat, state.pendingLng);
+}
+
+function ctxSave() {
+  closeCtxMenu();
+  promptSaveLocation();
+}
+
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('ctx-menu').contains(e.target)) closeCtxMenu();
+});
+
+// ─── SAVED LOCATIONS ─────────────────────────────────────────────────────────
+// Query rainfall for all saved locations (sequentially to be polite to IEM)
+async function loadSavedRain() {
+  for (let i = 0; i < state.savedLocations.length; i++) {
+    const loc = state.savedLocations[i];
+    const el = document.getElementById(`saved-rain-${i}`);
+    if (!el) continue;
+    el.textContent = '···';
+    el.className = 'saved-rain loading';
+    try {
+      const inches = await fetchRainfallValue(loc.lat, loc.lng);
+      if (!el) continue;
+      if (inches === null) {
+        el.textContent = 'N/A';
+        el.className = 'saved-rain error-val';
+      } else {
+        const isMetric = state.unit === 'mm';
+        el.textContent = isMetric
+          ? (inches * 25.4).toFixed(1) + 'mm'
+          : inches.toFixed(2) + '"';
+        el.className = 'saved-rain';
+      }
+      // Small delay between requests to not hammer IEM
+      await sleep(300);
+    } catch {
+      if (el) { el.textContent = '—'; el.className = 'saved-rain error-val'; }
+    }
+  }
+}
+
+function renderSavedRain() {
+  // Just re-render values already fetched (no new API calls)
+  // Called on unit switch; values stored on element as data attribute
+  document.querySelectorAll('.saved-rain[data-inches]').forEach(el => {
+    const inches = parseFloat(el.dataset.inches);
+    const isMetric = state.unit === 'mm';
+    el.textContent = isMetric
+      ? (inches * 25.4).toFixed(1) + 'mm'
+      : inches.toFixed(2) + '"';
+  });
+}
+
+// Fetch a single rainfall value (returns inches or null)
+async function fetchRainfallValue(lat, lng) {
+  const delta = 0.001;
+  const bbox = `${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
+  const params = new URLSearchParams({
+    SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetFeatureInfo',
+    LAYERS: state.layer, QUERY_LAYERS: state.layer, STYLES: '',
+    BBOX: bbox, WIDTH: '3', HEIGHT: '3',
+    FORMAT: 'image/png', INFO_FORMAT: 'text/plain',
+    X: '1', Y: '1', SRS: 'EPSG:4326',
+  });
+
+  const res = await fetch(`${WMS_BASE}?${params}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  return parseFeatureInfo(text);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function renderSaved() {
+  const list = document.getElementById('saved-list');
+  list.innerHTML = '';
+
+  if (state.savedLocations.length === 0) {
+    list.innerHTML = `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);padding:10px;line-height:1.8;">
+      No saved locations yet.<br>Click map · then save.
+    </div>`;
+    return;
+  }
+
+  state.savedLocations.forEach((loc, idx) => {
+    const color = PIN_COLORS[idx % PIN_COLORS.length];
+    const div = document.createElement('div');
+    div.className = 'saved-item';
+    div.innerHTML = `
+      <div class="saved-item-left">
+        <div class="saved-pin" style="background:${color}"></div>
+        <div>
+          <div class="saved-name">${escHtml(loc.name)}</div>
+          <div class="saved-sub">${loc.lat.toFixed(3)}°N &nbsp;${Math.abs(loc.lng).toFixed(3)}°W</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="saved-rain loading" id="saved-rain-${idx}">···</div>
+        <div style="cursor:pointer;color:var(--text-dim);font-size:16px;line-height:1;padding:2px 4px;"
+             onclick="removeSaved(${idx},event)" title="Remove">×</div>
+      </div>
+    `;
+    div.addEventListener('click', () => {
+      map.setView([loc.lat, loc.lng], 10, { animate: true });
+      placeMarker(loc.lat, loc.lng);
+      queryRainfall(loc.lat, loc.lng);
+      document.querySelectorAll('.saved-item').forEach(el => el.classList.remove('active'));
+      div.classList.add('active');
+    });
+    list.appendChild(div);
+  });
+
+  loadSavedRain();
+}
+
+function promptSaveLocation() {
+  const lat = state.selectedLat ?? state.pendingLat;
+  const lng = state.selectedLng ?? state.pendingLng;
+  if (lat === null) { showToast('Click the map first'); return; }
+  document.getElementById('modal').classList.add('show');
+  setTimeout(() => document.getElementById('modal-input').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  document.getElementById('modal-input').value = '';
+}
+
+function confirmSave() {
+  const name = document.getElementById('modal-input').value.trim();
+  if (!name) { document.getElementById('modal-input').focus(); return; }
+  const lat = state.selectedLat ?? state.pendingLat;
+  const lng = state.selectedLng ?? state.pendingLng;
+  state.savedLocations.push({ name, lat, lng });
+  localStorage.setItem('fw_locations', JSON.stringify(state.savedLocations));
+  closeModal();
+  renderSaved();
+  showToast(`📍 "${name}" saved`);
+}
+
+function removeSaved(idx, e) {
+  e.stopPropagation();
+  const name = state.savedLocations[idx].name;
+  state.savedLocations.splice(idx, 1);
+  localStorage.setItem('fw_locations', JSON.stringify(state.savedLocations));
+  renderSaved();
+  showToast(`Removed "${name}"`);
+}
+
+document.getElementById('modal-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') confirmSave();
+  if (e.key === 'Escape') closeModal();
+});
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, warn = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (warn ? ' warn' : '');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+// Seed with default Florida locations if first visit
+if (state.savedLocations.length === 0) {
+  state.savedLocations = [
+    { name: 'Tampa Bay',    lat: 27.947, lng: -82.459 },
+    { name: 'Anclote Key',  lat: 28.175, lng: -82.843 },
+    { name: 'Land O\' Lakes', lat: 28.211, lng: -82.458 },
+    { name: 'Fort Myers',   lat: 26.640, lng: -81.872 },
+  ];
+  localStorage.setItem('fw_locations', JSON.stringify(state.savedLocations));
+}
+
+renderSaved();
+</script>
+</body>
+</html>
