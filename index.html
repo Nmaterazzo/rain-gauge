@@ -716,15 +716,6 @@
         <button class="layer-btn" onclick="setLayer('mrms_p1h','1hr QPE',this)">
           <span class="lb-period">1hr</span>QPE
         </button>
-        <button class="layer-btn" onclick="setLayer('mrms_p3h','3hr QPE',this)">
-          <span class="lb-period">3hr</span>QPE
-        </button>
-        <button class="layer-btn" onclick="setLayer('mrms_p6h','6hr QPE',this)">
-          <span class="lb-period">6hr</span>QPE
-        </button>
-        <button class="layer-btn" onclick="setLayer('mrms_p12h','12hr QPE',this)">
-          <span class="lb-period">12hr</span>QPE
-        </button>
         <button class="layer-btn active" onclick="setLayer('mrms_p24h','24hr QPE',this)">
           <span class="lb-period">24hr</span>QPE
         </button>
@@ -838,9 +829,6 @@ const WMS_BASE_GREY = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/us/mrms.cgi
 // Layer name → display label + max scale for legend
 const LAYERS = {
   mrms_p1h:  { label: '1hr QPE',  maxIn: 3  },
-  mrms_p3h:  { label: '3hr QPE',  maxIn: 5  },
-  mrms_p6h:  { label: '6hr QPE',  maxIn: 6  },
-  mrms_p12h: { label: '12hr QPE', maxIn: 8  },
   mrms_p24h: { label: '24hr QPE', maxIn: 10 },
   mrms_p48h: { label: '48hr QPE', maxIn: 15 },
   mrms_p72h: { label: '72hr QPE', maxIn: 20 },
@@ -947,15 +935,110 @@ function placeMarker(lat, lng) {
   }).addTo(map);
 }
 
-// ─── REAL GetFeatureInfo QUERY ────────────────────────────────────────────────
+// ─── REAL MRMS POINT QUERY via canvas pixel sampling ─────────────────────────
+// IEM's WMS does not send CORS headers, so fetch() is blocked by the browser.
+// Instead we request a small GetMap image (the grey-background version so 
+// missing = rgb(128,128,128)), draw it to an offscreen canvas, read the pixel 
+// at the centre, and decode the colour back to a mm value using IEM's known
+// MRMS colormap (0–254 mm range mapped linearly to hue).
+//
+// IEM MRMS colourmap: values 0–254 mm are encoded as a rainbow ramp.
+// The grey WMS (mrms.cgi) uses grey (128,128,128) for missing/no-data.
+// We sample the centre pixel of a 5×5 image rendered at the clicked point.
+
+// IEM's MRMS QPE colormap — sampled from their legend at known mm breakpoints.
+// Format: [R, G, B, mm]  — linear interpolation between breakpoints.
+const MRMS_COLORMAP = [
+  [0,   0,   255, 0],
+  [0,   255, 255, 12.7],
+  [0,   255, 0,   25.4],
+  [255, 255, 0,   50.8],
+  [255, 128, 0,   76.2],
+  [255, 0,   0,   101.6],
+  [180, 0,   180, 152.4],
+  [128, 0,   128, 203.2],
+  [255, 255, 255, 254.0],
+];
+
+function pixelToMm(r, g, b) {
+  // Grey = missing
+  if (Math.abs(r - 128) < 15 && Math.abs(g - 128) < 15 && Math.abs(b - 128) < 15) return null;
+  // White = max/overflow — treat as ~254mm
+  if (r > 240 && g > 240 && b > 240) return 254;
+  // Black = 0
+  if (r < 10 && g < 10 && b < 10) return 0;
+
+  // Find nearest two breakpoints by minimising colour distance
+  let bestDist = Infinity, bestMm = null;
+  for (let i = 0; i < MRMS_COLORMAP.length - 1; i++) {
+    const [r1, g1, b1, mm1] = MRMS_COLORMAP[i];
+    const [r2, g2, b2, mm2] = MRMS_COLORMAP[i + 1];
+    // Project the pixel colour onto the segment between the two breakpoints
+    const dx = r2 - r1, dy = g2 - g1, dz = b2 - b1;
+    const len2 = dx*dx + dy*dy + dz*dz;
+    if (len2 === 0) continue;
+    const t = Math.max(0, Math.min(1,
+      ((r - r1)*dx + (g - g1)*dy + (b - b1)*dz) / len2
+    ));
+    const pr = r1 + t*dx, pg = g1 + t*dy, pb = b1 + t*dz;
+    const dist = (r-pr)**2 + (g-pg)**2 + (b-pb)**2;
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestMm = mm1 + t * (mm2 - mm1);
+    }
+  }
+  return bestMm;
+}
+
+async function fetchRainfallAtPoint(lat, lng) {
+  // Use the grey WMS (missing = grey, easier to detect than transparent)
+  const SIZE = 5;
+  const delta = 0.05; // ~5km box — big enough to guarantee the pixel is painted
+  const bbox = `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`;
+
+  const params = new URLSearchParams({
+    SERVICE: 'WMS',
+    VERSION: '1.1.1',
+    REQUEST: 'GetMap',
+    LAYERS: state.layer,
+    STYLES: '',
+    BBOX: bbox,
+    WIDTH: String(SIZE),
+    HEIGHT: String(SIZE),
+    FORMAT: 'image/png',
+    TRANSPARENT: 'FALSE',
+    SRS: 'EPSG:4326',
+  });
+
+  // Use the grey (non-transparent) WMS so missing is a solid grey pixel
+  const url = `${WMS_BASE_GREY}?${params}`;
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // IEM does allow image CORS even if fetch is blocked
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const centre = Math.floor(SIZE / 2);
+        const px = ctx.getImageData(centre, centre, 1, 1).data;
+        const mm = pixelToMm(px[0], px[1], px[2]);
+        resolve(mm === null ? null : mm / 25.4); // return inches
+      } catch (e) {
+        reject(e);
+      }
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = url;
+  });
+}
+
 async function queryRainfall(lat, lng) {
   state.selectedLat = lat;
   state.selectedLng = lng;
   state.lastValueIn = null;
-
-  // Cancel any in-flight request
-  if (state.queryAbort) state.queryAbort.abort();
-  state.queryAbort = new AbortController();
 
   // UI: loading state
   document.getElementById('querying-badge').classList.add('show');
@@ -972,90 +1055,28 @@ async function queryRainfall(lat, lng) {
   document.getElementById('readout-card').classList.remove('error-state');
   document.getElementById('add-loc-btn').style.display = 'none';
 
-  // Build GetFeatureInfo URL
-  // We use a tiny 3x3 bbox around the point in EPSG:4326
-  const delta = 0.001;
-  const bbox = `${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
-  const params = new URLSearchParams({
-    SERVICE: 'WMS',
-    VERSION: '1.1.1',
-    REQUEST: 'GetFeatureInfo',
-    LAYERS: state.layer,
-    QUERY_LAYERS: state.layer,
-    STYLES: '',
-    BBOX: bbox,
-    WIDTH: '3',
-    HEIGHT: '3',
-    FORMAT: 'image/png',
-    INFO_FORMAT: 'text/plain',
-    X: '1',
-    Y: '1',
-    SRS: 'EPSG:4326',
-    EXCEPTIONS: 'application/vnd.ogc.se_xml',
-  });
-
-  const url = `${WMS_BASE}?${params}`;
-
   try {
-    const res = await fetch(url, {
-      signal: state.queryAbort.signal,
-      headers: { 'Accept': 'text/plain, */*' },
-    });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    const inches = parseFeatureInfo(text);
-
+    const inches = await fetchRainfallAtPoint(lat, lng);
     document.getElementById('querying-badge').classList.remove('show');
 
     if (inches === null) {
-      showReadoutError('No data at this point');
+      showReadoutError('No coverage at this point');
     } else {
       state.lastValueIn = inches;
       displayRainfall(inches);
       document.getElementById('add-loc-btn').style.display = 'flex';
     }
 
-    // Timestamp
     const now = new Date();
     document.getElementById('readout-ts').textContent =
       `Queried ${now.toUTCString().slice(17,25)} UTC`;
 
   } catch (err) {
-    if (err.name === 'AbortError') return; // user clicked elsewhere, ignore
     document.getElementById('querying-badge').classList.remove('show');
     console.warn('MRMS query error:', err);
-
-    // Graceful fallback message
-    showReadoutError('IEM unavailable — try again');
+    showReadoutError('Data unavailable — try again');
     showToast('⚠ Could not reach MRMS data source', true);
   }
-}
-
-// Parse IEM GetFeatureInfo plain text response
-// Response looks like:
-//   GetFeatureInfo results:
-//   Layer 'mrms_p24h'
-//   Feature 0:
-//     value_0 = '12.34'
-// or "no results" / missing data sentinel values
-function parseFeatureInfo(text) {
-  if (!text || text.trim() === '') return null;
-
-  // IEM returns value_0 = 'X.XX' (mm internally, then we convert)
-  // Actually IEM MRMS QPE returns values in mm
-  const match = text.match(/value_0\s*=\s*['"]?([\d.]+)['"]?/i);
-  if (!match) return null;
-
-  const raw = parseFloat(match[1]);
-  if (isNaN(raw)) return null;
-
-  // IEM MRMS QPE WMS GetFeatureInfo returns mm
-  // Sentinel: 255 or very large values = missing/no data
-  if (raw >= 250 || raw < 0) return null;
-
-  // Convert mm → inches
-  return raw / 25.4;
 }
 
 function showReadoutError(msg) {
@@ -1221,22 +1242,9 @@ function renderSavedRain() {
   });
 }
 
-// Fetch a single rainfall value (returns inches or null)
+// Fetch a single rainfall value for saved locations (returns inches or null)
 async function fetchRainfallValue(lat, lng) {
-  const delta = 0.001;
-  const bbox = `${lng-delta},${lat-delta},${lng+delta},${lat+delta}`;
-  const params = new URLSearchParams({
-    SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetFeatureInfo',
-    LAYERS: state.layer, QUERY_LAYERS: state.layer, STYLES: '',
-    BBOX: bbox, WIDTH: '3', HEIGHT: '3',
-    FORMAT: 'image/png', INFO_FORMAT: 'text/plain',
-    X: '1', Y: '1', SRS: 'EPSG:4326',
-  });
-
-  const res = await fetch(`${WMS_BASE}?${params}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const text = await res.text();
-  return parseFeatureInfo(text);
+  return fetchRainfallAtPoint(lat, lng);
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
