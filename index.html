@@ -1076,8 +1076,8 @@ async function queryRainfall(lat, lng) {
     document.getElementById('querying-badge').classList.remove('show');
 
     if (inches === null) {
-      state.lastValueIn = 0;
-      displayRainfall(0);
+      state.lastValueIn = null;
+      displayRainfall(null);
       document.getElementById('add-loc-btn').style.display = 'flex';
     } else {
       state.lastValueIn = inches;
@@ -1108,34 +1108,42 @@ function showReadoutError(msg) {
 // ─── DISPLAY RAINFALL ─────────────────────────────────────────────────────────
 function displayRainfall(inches) {
   const isMetric = state.unit === 'mm';
-  const displayVal = isMetric ? (inches * 25.4) : inches;
   const maxScale = LAYERS[state.layer].maxIn;
-
   const val = document.getElementById('readout-val');
 
-  if (inches < 0.001) {
-    val.textContent = 'TRACE';
+  // null = no data / dry — show 0 cleanly, not TRACE
+  if (inches === null || inches === 0) {
+    val.textContent = isMetric ? '0.0 mm' : '0.00"';
     val.className = 'readout-value';
     document.getElementById('readout-unit').textContent =
-      `< 0.03mm · ${LAYERS[state.layer].label}`;
-  } else {
-    val.textContent = isMetric
-      ? (inches * 25.4).toFixed(1) + ' mm'
-      : inches.toFixed(2) + '"';
-    val.className = 'readout-value';
-    document.getElementById('readout-unit').textContent =
-      `${isMetric ? 'millimeters' : 'inches'} · ${LAYERS[state.layer].label}`;
+      `no accumulation · ${LAYERS[state.layer].label}`;
+    document.getElementById('rain-bar-wrap').style.display = 'block';
+    setTimeout(() => { document.getElementById('rain-bar-fill').style.width = '0%'; }, 50);
+    document.getElementById('rain-bar-labels').innerHTML = isMetric
+      ? `<span>0</span><span>—</span><span>—</span><span>—</span>`
+      : `<span>0"</span><span>—</span><span>—</span><span>—</span>`;
+    const dots = document.getElementById('intensity-dots').children;
+    for (let i = 0; i < dots.length; i++) dots[i].style.background = 'var(--border)';
+    document.getElementById('intensity-label').textContent = 'NONE';
+    document.getElementById('intensity-row').style.display = 'flex';
+    document.getElementById('unit-toggle').style.display = 'flex';
+    return;
   }
+  // Actual rainfall value
+  val.textContent = isMetric
+    ? (inches * 25.4).toFixed(1) + ' mm'
+    : inches.toFixed(2) + '"';
+  val.className = 'readout-value';
+  document.getElementById('readout-unit').textContent =
+    `${isMetric ? 'millimeters' : 'inches'} · ${LAYERS[state.layer].label}`;
 
-  // Rain bar (always scale in inches)
+  // Rain bar
   const pct = Math.min(100, (inches / maxScale) * 100);
   document.getElementById('rain-bar-wrap').style.display = 'block';
   document.getElementById('rain-bar-labels').innerHTML = isMetric
     ? `<span>0</span><span>${Math.round(maxScale*25.4*0.25)}mm</span><span>${Math.round(maxScale*25.4*0.5)}mm</span><span>${Math.round(maxScale*25.4)}mm+</span>`
     : `<span>0"</span><span>${(maxScale*0.25).toFixed(1)}"</span><span>${(maxScale*0.5).toFixed(1)}"</span><span>${maxScale}"+</span>`;
-  setTimeout(() => {
-    document.getElementById('rain-bar-fill').style.width = pct + '%';
-  }, 50);
+  setTimeout(() => { document.getElementById('rain-bar-fill').style.width = pct + '%'; }, 50);
 
   // Intensity
   const level = INTENSITY_LEVELS.find(l => inches <= l.max) || INTENSITY_LEVELS[INTENSITY_LEVELS.length-1];
@@ -1145,13 +1153,8 @@ function displayRainfall(inches) {
   }
   document.getElementById('intensity-label').textContent = level.label;
   document.getElementById('intensity-row').style.display = 'flex';
-
-  // Unit toggle
   document.getElementById('unit-toggle').style.display = 'flex';
-
-  // Legend label
-  document.getElementById('legend-title').textContent =
-    isMetric ? 'Precip (mm)' : 'Precip (in)';
+  document.getElementById('legend-title').textContent = isMetric ? 'Precip (mm)' : 'Precip (in)';
 }
 
 // ─── UNIT TOGGLE ─────────────────────────────────────────────────────────────
