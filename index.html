@@ -225,18 +225,77 @@
     /* Hide desktop map overlays on mobile */
     .map-top-bar, .querying-badge, .map-legend { display: none !important; }
 
-    /* Overlays inside fullscreen */
-    #map-fullscreen .map-top-bar {
-      display: none;
+    /* Layer badge bottom-left of fullscreen */
+    .fs-layer-badge {
       position: absolute;
-      top: 12px; left: 50%; transform: translateX(-50%);
+      bottom: 18px; left: 12px;
       z-index: 10000;
+      background: rgba(8,14,20,0.85);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      padding: 5px 10px;
+      border-radius: 5px;
+      pointer-events: none;
     }
-    #map-fullscreen .map-legend {
-      display: none;
+
+    /* Floating result card — bottom center, slides up on show */
+    .fs-result-card {
       position: absolute;
-      bottom: 28px; right: 12px;
-      z-index: 10000;
+      bottom: -120px;
+      left: 50%; transform: translateX(-50%);
+      width: calc(100% - 32px);
+      max-width: 340px;
+      z-index: 10001;
+      background: rgba(8,14,20,0.96);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: bottom 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      backdrop-filter: blur(12px);
+    }
+    .fs-result-card.show { bottom: 22px; }
+    .fs-result-querying {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text-dim); font-size: 12px;
+      font-family: 'DM Mono', monospace;
+    }
+    .fs-spin {
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .fs-result-body { flex: 1; min-width: 0; }
+    .fs-result-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 26px; font-weight: 700;
+      color: var(--accent); line-height: 1;
+      margin-bottom: 3px;
+    }
+    .fs-result-sub {
+      font-size: 11px; color: var(--text-dim);
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.05em;
+    }
+    .fs-result-coords {
+      font-size: 10px; color: var(--border);
+      font-family: 'DM Mono', monospace;
+      margin-top: 4px;
+    }
+    .fs-result-dismiss {
+      background: none; border: none;
+      color: var(--text-dim); font-size: 16px;
+      cursor: pointer; padding: 4px 6px;
+      flex-shrink: 0; align-self: flex-start;
     }
 
     /* Saved list scrolls naturally */
@@ -939,15 +998,18 @@
 <div class="map-fullscreen" id="map-fullscreen">
   <div id="map-fullscreen-inner"></div>
   <button class="map-fs-close" onclick="closeFullscreenMap()">✕ CLOSE</button>
-  <div class="map-overlay map-top-bar" id="fs-top-bar" style="display:none">
-    Tap to query · Hold to save · Layer: <span id="fs-layer-label">24hr QPE</span>
-  </div>
-  <div class="map-overlay map-legend" id="fs-legend" style="display:none;bottom:28px;right:12px;">
-    <div class="legend-title">Precip (in)</div>
-    <div class="legend-bar"></div>
-    <div class="legend-labels">
-      <span>0</span><span>0.5</span><span>1.5</span><span>3</span><span>6+</span>
+  <div class="fs-layer-badge" id="fs-layer-badge">24hr QPE</div>
+  <!-- Floating result card -->
+  <div class="fs-result-card" id="fs-result-card">
+    <div class="fs-result-querying" id="fs-result-querying">
+      <div class="fs-spin"></div><span>Querying…</span>
     </div>
+    <div class="fs-result-body" id="fs-result-body" style="display:none">
+      <div class="fs-result-val" id="fs-result-val">—</div>
+      <div class="fs-result-sub" id="fs-result-sub">—</div>
+      <div class="fs-result-coords" id="fs-result-coords"></div>
+    </div>
+    <button class="fs-result-dismiss" onclick="dismissFsCard()">✕</button>
   </div>
 </div>
 
@@ -1223,6 +1285,9 @@ async function queryRainfall(lat, lng) {
   document.getElementById('readout-card').classList.remove('error-state');
   document.getElementById('add-loc-btn').style.display = 'none';
 
+  // Mobile fullscreen: show floating card in querying state
+  showFsCard(null, lat, lng);
+
   try {
     const inches = await fetchRainfallAtPoint(lat, lng);
     document.getElementById('querying-badge').classList.remove('show');
@@ -1230,10 +1295,13 @@ async function queryRainfall(lat, lng) {
     if (inches === null) {
       state.lastValueIn = null;
       displayRainfall(null);
+      updateFsCard(0, 'no accumulation', lat, lng);
       document.getElementById('add-loc-btn').style.display = 'flex';
     } else {
       state.lastValueIn = inches;
       displayRainfall(inches);
+      const label = LAYERS[state.layer] ? LAYERS[state.layer].label : state.layerLabel || '';
+      updateFsCard(inches, label, lat, lng);
       document.getElementById('add-loc-btn').style.display = 'flex';
     }
 
@@ -1324,6 +1392,8 @@ function setLayer(layer, label, btn) {
   state.layer = layer;
   state.layerLabel = label;
   document.getElementById('layer-label').textContent = label;
+  const fsLbl = document.getElementById('fs-layer-badge');
+  if (fsLbl) fsLbl.textContent = label;
   document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   addWmsLayer();
@@ -1568,39 +1638,48 @@ function openFullscreenMap() {
   if (!mobileFullMap) {
     mobileFullMap = L.map('map-fullscreen-inner', {
       center: map.getCenter(), zoom: map.getZoom(), zoomControl: true,
+      tap: true, tapTolerance: 15,
     });
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 }).addTo(mobileFullMap);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, opacity: 0.7 }).addTo(mobileFullMap);
     state.wmsLayerMobile = L.tileLayer.wms(WMS_BASE, {
       layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1',
     }).addTo(mobileFullMap);
+
+    // Tap to query — use Leaflet's own click (works on mobile via tap handler)
     mobileFullMap.on('click', (e) => {
       const { lat, lng } = e.latlng;
       state.pendingLat = lat; state.pendingLng = lng;
       queryRainfall(lat, lng);
     });
-    let pressTimer;
-    document.getElementById('map-fullscreen-inner').addEventListener('touchstart', (e) => {
+
+    // Long-press to save — track touchstart/end on the MAP container element
+    let pressTimer = null;
+    let touchMoved = false;
+    const mapContainer = mobileFullMap.getContainer();
+    mapContainer.addEventListener('touchstart', (e) => {
+      touchMoved = false;
       pressTimer = setTimeout(() => {
+        if (touchMoved) return;
         const touch = e.touches[0];
-        const pt = mobileFullMap.containerPointToLatLng([touch.clientX, touch.clientY]);
+        const rect = mapContainer.getBoundingClientRect();
+        const pt = mobileFullMap.containerPointToLatLng(
+          L.point(touch.clientX - rect.left, touch.clientY - rect.top)
+        );
         state.pendingLat = pt.lat; state.pendingLng = pt.lng;
         promptSaveLocation();
-      }, 600);
-    });
-    document.getElementById('map-fullscreen-inner').addEventListener('touchend', () => clearTimeout(pressTimer));
+      }, 700);
+    }, { passive: true });
+    mapContainer.addEventListener('touchmove', () => { touchMoved = true; clearTimeout(pressTimer); }, { passive: true });
+    mapContainer.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+
   } else {
     if (state.wmsLayerMobile) mobileFullMap.removeLayer(state.wmsLayerMobile);
     state.wmsLayerMobile = L.tileLayer.wms(WMS_BASE, { layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1' }).addTo(mobileFullMap);
   }
-  setTimeout(() => mobileFullMap.invalidateSize(), 100);
-  // Show inline legend in fullscreen
-  const fsLeg = document.getElementById('fs-legend');
-  const fsTop = document.getElementById('fs-top-bar');
-  const fsLbl = document.getElementById('fs-layer-label');
-  if (fsLeg) { fsLeg.style.cssText = 'display:block !important'; }
-  if (fsTop) { fsTop.style.cssText = 'display:block !important'; }
-  if (fsLbl) { fsLbl.textContent = state.layerLabel || '24hr QPE'; }
+  setTimeout(() => mobileFullMap.invalidateSize(), 150);
+  const fsLbl = document.getElementById('fs-layer-badge');
+  if (fsLbl) fsLbl.textContent = state.layerLabel || '24hr QPE';
 }
 
 function closeFullscreenMap() {
@@ -1612,6 +1691,41 @@ function closeFullscreenMap() {
 }
 
 setTimeout(() => { if (isMobile()) initMobilePreviewMap(); }, 500);
+
+// ─── FLOATING RESULT CARD (fullscreen map) ────────────────────────────────────
+function showFsCard(inches, lat, lng) {
+  const card = document.getElementById('fs-result-card');
+  if (!card) return;
+  // Show querying spinner
+  document.getElementById('fs-result-querying').style.display = 'flex';
+  document.getElementById('fs-result-body').style.display = 'none';
+  card.classList.add('show');
+}
+
+function updateFsCard(inches, layerLabel, lat, lng) {
+  const card = document.getElementById('fs-result-card');
+  if (!card) return;
+  const isMetric = state.unit === 'mm';
+  const valStr = inches === 0
+    ? (isMetric ? '0.0 mm' : '0.00"')
+    : isMetric
+      ? (inches * 25.4).toFixed(1) + ' mm'
+      : inches.toFixed(2) + '"';
+
+  document.getElementById('fs-result-querying').style.display = 'none';
+  document.getElementById('fs-result-body').style.display = 'block';
+  document.getElementById('fs-result-val').textContent = valStr;
+  document.getElementById('fs-result-sub').textContent =
+    inches === 0 ? `no accumulation · ${layerLabel}` : `precipitation · ${layerLabel}`;
+  document.getElementById('fs-result-coords').textContent =
+    `${lat.toFixed(4)}°N  ${Math.abs(lng).toFixed(4)}°W`;
+  card.classList.add('show');
+}
+
+function dismissFsCard() {
+  const card = document.getElementById('fs-result-card');
+  if (card) card.classList.remove('show');
+}
 </script>
 </body>
 </html>
