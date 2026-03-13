@@ -131,6 +131,126 @@
     overflow: hidden;
   }
 
+  /* ── MOBILE LAYOUT ── */
+  @media (max-width: 700px) {
+    body { overflow-y: auto; overflow-x: hidden; }
+
+    .main {
+      flex-direction: column;
+      overflow: visible;
+      height: auto;
+    }
+
+    .sidebar {
+      width: 100%;
+      height: auto;
+      overflow: visible;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Map hidden by default on mobile — shown as inline preview */
+    #map { display: none; }
+
+    /* Map preview section injected below saved locations */
+    .map-preview-section {
+      padding: 0 12px 12px;
+    }
+    .map-preview-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.15em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      padding: 14px 0 0;
+      border-top: 1px solid var(--border);
+    }
+    .map-preview-wrap {
+      position: relative;
+      height: 220px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+    #map-preview { width: 100%; height: 100%; }
+    .map-preview-tap {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.22);
+      z-index: 500;
+      pointer-events: none;
+    }
+    .map-preview-tap span {
+      background: rgba(0,0,0,0.65);
+      color: var(--accent);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--accent);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Fullscreen map overlay */
+    .map-fullscreen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #000;
+    }
+    .map-fullscreen.open { display: block; }
+    #map-fullscreen-inner { width: 100%; height: 100%; }
+    .map-fs-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 10000;
+      background: rgba(0,0,0,0.75);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 13px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.1em;
+    }
+
+    /* Hide desktop map overlays on mobile */
+    .map-top-bar, .querying-badge, .map-legend { display: none !important; }
+
+    /* Overlays inside fullscreen */
+    #map-fullscreen .map-top-bar {
+      display: none;
+      position: absolute;
+      top: 12px; left: 50%; transform: translateX(-50%);
+      z-index: 10000;
+    }
+    #map-fullscreen .map-legend {
+      display: none;
+      position: absolute;
+      bottom: 28px; right: 12px;
+      z-index: 10000;
+    }
+
+    /* Saved list scrolls naturally */
+    .saved-list { max-height: none; overflow: visible; }
+
+    /* App fills viewport vertically */
+    html, body { height: auto; }
+  }
+
+  /* Desktop: hide mobile-only elements */
+  @media (min-width: 701px) {
+    .map-preview-section, .map-fullscreen { display: none !important; }
+  }
+
   .panel-section {
     padding: 14px 16px;
     border-bottom: 1px solid var(--border);
@@ -778,6 +898,15 @@
       </button>
     </div>
 
+    <!-- MOBILE MAP PREVIEW -->
+    <div class="map-preview-section">
+      <div class="map-preview-label">Map</div>
+      <div class="map-preview-wrap" id="map-preview-wrap" onclick="openFullscreenMap()">
+        <div id="map-preview"></div>
+        <div class="map-preview-tap"><span>⛶ TAP FOR FULL MAP</span></div>
+      </div>
+    </div>
+
     <!-- DATA SOURCE -->
     <div class="data-note">
       Data: <a href="https://mrms.ncep.noaa.gov" target="_blank">NOAA MRMS</a> via
@@ -800,6 +929,23 @@
     <div class="legend-title" id="legend-title">Precip (in)</div>
     <div class="legend-bar"></div>
     <div class="legend-labels" id="legend-labels">
+      <span>0</span><span>0.5</span><span>1.5</span><span>3</span><span>6+</span>
+    </div>
+  </div>
+</div>
+
+
+<!-- MOBILE FULLSCREEN MAP -->
+<div class="map-fullscreen" id="map-fullscreen">
+  <div id="map-fullscreen-inner"></div>
+  <button class="map-fs-close" onclick="closeFullscreenMap()">✕ CLOSE</button>
+  <div class="map-overlay map-top-bar" id="fs-top-bar" style="display:none">
+    Tap to query · Hold to save · Layer: <span id="fs-layer-label">24hr QPE</span>
+  </div>
+  <div class="map-overlay map-legend" id="fs-legend" style="display:none;bottom:28px;right:12px;">
+    <div class="legend-title">Precip (in)</div>
+    <div class="legend-bar"></div>
+    <div class="legend-labels">
       <span>0</span><span>0.5</span><span>1.5</span><span>3</span><span>6+</span>
     </div>
   </div>
@@ -1176,10 +1322,20 @@ function setUnit(unit) {
 // ─── LAYER SWITCHER ───────────────────────────────────────────────────────────
 function setLayer(layer, label, btn) {
   state.layer = layer;
+  state.layerLabel = label;
   document.getElementById('layer-label').textContent = label;
   document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   addWmsLayer();
+  // Sync mobile maps
+  if (mobilePreviewMap) {
+    mobilePreviewMap.eachLayer(l => { if (l.options && l.options.layers) mobilePreviewMap.removeLayer(l); });
+    L.tileLayer.wms(WMS_BASE, { layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1' }).addTo(mobilePreviewMap);
+  }
+  if (mobileFullMap && state.wmsLayerMobile) {
+    mobileFullMap.removeLayer(state.wmsLayerMobile);
+    state.wmsLayerMobile = L.tileLayer.wms(WMS_BASE, { layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1' }).addTo(mobileFullMap);
+  }
   // Re-query selected point with new layer
   if (state.selectedLat !== null) queryRainfall(state.selectedLat, state.selectedLng);
   // Re-load saved locations rain values
@@ -1386,6 +1542,76 @@ if (state.savedLocations.length === 0) {
 }
 
 renderSaved();
+
+// ─── MOBILE MAP ────────────────────────────────────────────────────────────────
+const isMobile = () => window.innerWidth <= 700;
+let mobilePreviewMap = null;
+let mobileFullMap = null;
+
+function initMobilePreviewMap() {
+  if (!isMobile() || mobilePreviewMap) return;
+  mobilePreviewMap = L.map('map-preview', {
+    center: map.getCenter(), zoom: map.getZoom(),
+    zoomControl: false, attributionControl: false,
+    dragging: false, scrollWheelZoom: false,
+    doubleClickZoom: false, touchZoom: false,
+  });
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(mobilePreviewMap);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, opacity: 0.7 }).addTo(mobilePreviewMap);
+  L.tileLayer.wms(WMS_BASE, { layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1' }).addTo(mobilePreviewMap);
+}
+
+function openFullscreenMap() {
+  const fs = document.getElementById('map-fullscreen');
+  fs.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if (!mobileFullMap) {
+    mobileFullMap = L.map('map-fullscreen-inner', {
+      center: map.getCenter(), zoom: map.getZoom(), zoomControl: true,
+    });
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 }).addTo(mobileFullMap);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, opacity: 0.7 }).addTo(mobileFullMap);
+    state.wmsLayerMobile = L.tileLayer.wms(WMS_BASE, {
+      layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1',
+    }).addTo(mobileFullMap);
+    mobileFullMap.on('click', (e) => {
+      const { lat, lng } = e.latlng;
+      state.pendingLat = lat; state.pendingLng = lng;
+      queryRainfall(lat, lng);
+    });
+    let pressTimer;
+    document.getElementById('map-fullscreen-inner').addEventListener('touchstart', (e) => {
+      pressTimer = setTimeout(() => {
+        const touch = e.touches[0];
+        const pt = mobileFullMap.containerPointToLatLng([touch.clientX, touch.clientY]);
+        state.pendingLat = pt.lat; state.pendingLng = pt.lng;
+        promptSaveLocation();
+      }, 600);
+    });
+    document.getElementById('map-fullscreen-inner').addEventListener('touchend', () => clearTimeout(pressTimer));
+  } else {
+    if (state.wmsLayerMobile) mobileFullMap.removeLayer(state.wmsLayerMobile);
+    state.wmsLayerMobile = L.tileLayer.wms(WMS_BASE, { layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1' }).addTo(mobileFullMap);
+  }
+  setTimeout(() => mobileFullMap.invalidateSize(), 100);
+  // Show inline legend in fullscreen
+  const fsLeg = document.getElementById('fs-legend');
+  const fsTop = document.getElementById('fs-top-bar');
+  const fsLbl = document.getElementById('fs-layer-label');
+  if (fsLeg) { fsLeg.style.cssText = 'display:block !important'; }
+  if (fsTop) { fsTop.style.cssText = 'display:block !important'; }
+  if (fsLbl) { fsLbl.textContent = state.layerLabel || '24hr QPE'; }
+}
+
+function closeFullscreenMap() {
+  document.getElementById('map-fullscreen').classList.remove('open');
+  document.body.style.overflow = '';
+  if (mobileFullMap && mobilePreviewMap) {
+    mobilePreviewMap.setView(mobileFullMap.getCenter(), mobileFullMap.getZoom(), { animate: false });
+  }
+}
+
+setTimeout(() => { if (isMobile()) initMobilePreviewMap(); }, 500);
 </script>
 </body>
 </html>
