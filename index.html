@@ -244,11 +244,11 @@
     /* Floating result card — bottom center, slides up on show */
     .fs-result-card {
       position: absolute;
-      bottom: -120px;
+      bottom: -160px;
       left: 50%; transform: translateX(-50%);
       width: calc(100% - 32px);
       max-width: 340px;
-      z-index: 10001;
+      z-index: 10002;
       background: rgba(8,14,20,0.96);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -258,8 +258,9 @@
       gap: 12px;
       transition: bottom 0.3s cubic-bezier(0.34,1.56,0.64,1);
       backdrop-filter: blur(12px);
+      pointer-events: none;
     }
-    .fs-result-card.show { bottom: 22px; }
+    .fs-result-card.show { bottom: 22px; pointer-events: auto; }
     .fs-result-querying {
       display: flex; align-items: center; gap: 8px;
       color: var(--text-dim); font-size: 12px;
@@ -301,7 +302,7 @@
     /* Fullscreen layer picker pill */
     .fs-picker-wrap {
       position: absolute;
-      top: 96px; left: 10px;
+      top: 16px; left: 16px;
       z-index: 10001;
       width: 270px;
     }
@@ -383,6 +384,56 @@
     color: var(--text-dim);
     text-transform: uppercase;
     margin-bottom: 10px;
+  }
+
+  /* SIDEBAR MODE TABS */
+  .sidebar-mode-btn {
+    flex: 1;
+    padding: 6px 0;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .sidebar-mode-btn.active {
+    background: rgba(0,212,255,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* FORECAST MODE BUTTONS (6hr/daily/multi) */
+  .forecast-mode-btn {
+    flex: 1;
+    padding: 5px 0;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .forecast-mode-btn.active {
+    background: rgba(0,255,157,0.1);
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+
+  .sb-day-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 6px 0 3px;
   }
 
   /* LAYER SELECTOR */
@@ -956,21 +1007,53 @@
   <div class="sidebar">
 
     <!-- LAYER SELECT -->
-    <div class="panel-section">
-      <div class="section-label">Accumulation Period</div>
-      <div class="layer-grid">
-        <button class="layer-btn" onclick="setLayer('mrms_p1h','1hr QPE',this)">
-          <span class="lb-period">1hr</span>QPE
-        </button>
-        <button class="layer-btn active" onclick="setLayer('mrms_p24h','24hr QPE',this)">
-          <span class="lb-period">24hr</span>QPE
-        </button>
-        <button class="layer-btn" onclick="setLayer('mrms_p48h','48hr QPE',this)">
-          <span class="lb-period">48hr</span>QPE
-        </button>
-        <button class="layer-btn" onclick="setLayer('mrms_p72h','72hr QPE',this)">
-          <span class="lb-period">72hr</span>QPE
-        </button>
+    <div class="panel-section" id="layer-section">
+      <!-- Tab toggle -->
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <button class="sidebar-mode-btn active" id="sb-tab-obs" onclick="sbSetTab('obs')">Observed</button>
+        <button class="sidebar-mode-btn" id="sb-tab-fcast" onclick="sbSetTab('fcast')">Forecast</button>
+      </div>
+
+      <!-- Observed panel -->
+      <div id="sb-obs-panel">
+        <div class="section-label">Accumulation Period</div>
+        <div class="layer-grid">
+          <button class="layer-btn" onclick="setLayer('mrms_p1h','1hr QPE',this)">
+            <span class="lb-period">1hr</span>QPE
+          </button>
+          <button class="layer-btn active" onclick="setLayer('mrms_p24h','24hr QPE',this)">
+            <span class="lb-period">24hr</span>QPE
+          </button>
+          <button class="layer-btn" onclick="setLayer('mrms_p48h','48hr QPE',this)">
+            <span class="lb-period">48hr</span>QPE
+          </button>
+          <button class="layer-btn" onclick="setLayer('mrms_p72h','72hr QPE',this)">
+            <span class="lb-period">72hr</span>QPE
+          </button>
+        </div>
+      </div>
+
+      <!-- Forecast panel -->
+      <div id="sb-fcast-panel" style="display:none">
+        <div class="section-label" style="margin-bottom:8px;">WPC QPF Forecast</div>
+        <!-- Forecast mode tabs -->
+        <div style="display:flex;gap:5px;margin-bottom:10px;">
+          <button class="forecast-mode-btn active" id="sb-fm-6hr" onclick="sbSetFM('6hr')">6-Hour</button>
+          <button class="forecast-mode-btn" id="sb-fm-daily" onclick="sbSetFM('daily')">Daily</button>
+          <button class="forecast-mode-btn" id="sb-fm-multi" onclick="sbSetFM('multi')">Multi-Day</button>
+        </div>
+        <!-- 6-hour slots -->
+        <div id="sb-mode-6hr">
+          <div id="sb-sixhr-grid"></div>
+        </div>
+        <!-- Daily -->
+        <div id="sb-mode-daily" style="display:none">
+          <div class="layer-grid" id="sb-daily-grid"></div>
+        </div>
+        <!-- Multi-day -->
+        <div id="sb-mode-multi" style="display:none">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;" id="sb-multi-grid"></div>
+        </div>
       </div>
     </div>
 
@@ -1115,7 +1198,7 @@
       <div class="fs-result-sub" id="fs-result-sub">—</div>
       <div class="fs-result-coords" id="fs-result-coords"></div>
     </div>
-    <button class="fs-result-dismiss" onclick="dismissFsCard()">✕</button>
+    <button class="fs-result-dismiss" onclick="dismissFsCard(event)">✕</button>
   </div>
 </div>
 
@@ -1787,7 +1870,7 @@ function openFullscreenMap() {
   document.body.style.overflow = 'hidden';
   if (!mobileFullMap) {
     mobileFullMap = L.map('map-fullscreen-inner', {
-      center: map.getCenter(), zoom: map.getZoom(), zoomControl: true,
+      center: map.getCenter(), zoom: map.getZoom(), zoomControl: false,
       tap: true, tapTolerance: 15,
     });
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 }).addTo(mobileFullMap);
@@ -1872,22 +1955,201 @@ function updateFsCard(inches, layerLabel, lat, lng) {
   card.classList.add('show');
 }
 
-// ─── FULLSCREEN LAYER PICKER ──────────────────────────────────────────────────
+function dismissFsCard(e) {
+  if (e) e.stopPropagation();
+  const card = document.getElementById('fs-result-card');
+  if (card) card.classList.remove('show');
+}
+
+// Close picker if tapping outside it — but not when tapping the result card or its children
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('fs-picker-wrap') || document.querySelector('.fs-picker-wrap');
+  const card = document.getElementById('fs-result-card');
+  if (card && card.contains(e.target)) return; // don't interfere with card taps
+  if (wrap && !wrap.contains(e.target) && fsPanelOpen) toggleFsPicker();
+});
+
+// ─── SIDEBAR OBS/FORECAST TABS ────────────────────────────────────────────────
+function sbSetTab(tab) {
+  document.getElementById('sb-obs-panel').style.display   = tab==='obs'   ? '' : 'none';
+  document.getElementById('sb-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
+  document.getElementById('sb-tab-obs').classList.toggle('active',   tab==='obs');
+  document.getElementById('sb-tab-fcast').classList.toggle('active', tab==='fcast');
+  // Update header label
+  document.getElementById('utc-clock'); // no-op, just ensure DOM ready
+}
+
+function sbSetFM(mode) {
+  ['6hr','daily','multi'].forEach(m => {
+    document.getElementById('sb-mode-'+m).style.display = m===mode ? '' : 'none';
+    document.getElementById('sb-fm-'+m).classList.toggle('active', m===mode);
+  });
+}
+
+function sbSelFcast(btn, wmsUrl, layerNum, label) {
+  document.querySelectorAll('#sb-fcast-panel .layer-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.layer = '__wpc__' + layerNum;
+  state.layerLabel = label;
+  state.wpcLayerNum = layerNum;
+  document.getElementById('layer-label').textContent = label;
+  const fsLbl = document.getElementById('fs-layer-badge');
+  if (fsLbl) fsLbl.textContent = label;
+  fsPicker_setLabel(label);
+  _applyWmsLayer(wmsUrl, String(layerNum));
+  if (state.selectedLat !== null) queryRainfall(state.selectedLat, state.selectedLng);
+  loadSavedRain();
+}
+
+// Build sidebar 6hr grid
+(function sbBuild6hr() {
+  const wrap = document.getElementById('sb-sixhr-grid');
+  if (!wrap) return;
+  WPC_SLOTS.slotsByDay.forEach(dayGroup => {
+    const dl = document.createElement('div');
+    dl.className = 'sb-day-label';
+    dl.textContent = dayGroup.dayLabel;
+    wrap.appendChild(dl);
+    const row = document.createElement('div');
+    row.className = 'layer-grid';
+    row.style.marginBottom = '2px';
+    dayGroup.slots.forEach(slot => {
+      const btn = document.createElement('button');
+      btn.className = 'layer-btn' + (slot.past ? '' : '');
+      btn.style.opacity = slot.past ? '0.35' : '1';
+      btn.style.textDecoration = slot.past ? 'line-through' : '';
+      btn.title = slot.fullLabel;
+      btn.innerHTML = `<span class="lb-period" style="font-size:11px">${slot.label}</span>QPF`;
+      if (!slot.past) btn.onclick = () => sbSelFcast(btn, WMS_WPC, slot.layerNum, slot.fullLabel);
+      row.appendChild(btn);
+    });
+    wrap.appendChild(row);
+  });
+})();
+
+// Build sidebar daily grid
+(function sbBuildDaily() {
+  const g = document.getElementById('sb-daily-grid');
+  if (!g) return;
+  WPC_SLOTS.daily.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'layer-btn';
+    btn.title = o.label;
+    btn.innerHTML = `<span class="lb-period" style="font-size:11px">${o.short}</span><span style="font-size:8px;display:block;margin-top:1px;color:inherit;opacity:0.7">${o.label}</span>`;
+    btn.onclick = () => sbSelFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
+    g.appendChild(btn);
+  });
+})();
+
+// Build sidebar multi grid
+(function sbBuildMulti() {
+  const g = document.getElementById('sb-multi-grid');
+  if (!g) return;
+  WPC_SLOTS.multi.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'layer-btn';
+    btn.title = o.label;
+    btn.innerHTML = `<span class="lb-period" style="font-size:12px">${o.short}</span><span style="font-size:8px;display:block;margin-top:1px;color:inherit;opacity:0.7">${o.label}</span>`;
+    btn.onclick = () => sbSelFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
+    g.appendChild(btn);
+  });
+})();
+
 const WMS_WPC = 'https://mapservices.weather.noaa.gov/vector/services/precip/wpc_qpf/MapServer/WMSServer';
 
-// WPC 6-hr layer IDs keyed by slot index (0–11 = D1 slots 0-3, D2 slots 0-3, D3 slots 0-3)
-const WPC_6HR_LAYERS = [13,14,15,16, 17,18,19,20, 21,22,23,24];
+// WPC 6-hr layer IDs — offsets from last issue time
+const WPC_6HR_LAYERS  = [13,14,15,16, 17,18,19,20, 21,22,23,24];
 const WPC_DAILY_LAYERS  = { d0:1, d1:2, d2:3, d45:4 };
 const WPC_MULTI_LAYERS  = { '1-3':8, '1-5':9, '1-7':10 };
 
-// ET day names
-function getETNow() { return new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'})); }
-const _etNow = getETNow();
-const _DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const fsDayNames = [0,1,2,3].map(i => { const d=new Date(_etNow); d.setDate(_etNow.getDate()+i); return _DAY_NAMES[d.getDay()]; });
-const _nowHourET = _etNow.getHours();
-const FS_SLOTS = ['1am','7am','1pm','7pm'];
-const FS_SLOT_H = [1,7,13,19];
+// ── WPC ISSUE TIME HELPERS ────────────────────────────────────────────────────
+// WPC issues QPF at 06Z and 18Z daily.
+// All layer hour offsets (00-06hr, 06-12hr, etc.) are relative to the LAST issue time.
+// We calculate the last issue time in UTC, then convert each window boundary to ET.
+
+function getLastWpcIssueUTC() {
+  const now = new Date(); // current UTC
+  const utcH = now.getUTCHours();
+  const d = new Date(now);
+  // Last issue is 18Z if we're past 18Z, else 06Z if past 06Z, else 18Z yesterday
+  if (utcH >= 18) {
+    d.setUTCHours(18, 0, 0, 0);
+  } else if (utcH >= 6) {
+    d.setUTCHours(6, 0, 0, 0);
+  } else {
+    d.setUTCDate(d.getUTCDate() - 1);
+    d.setUTCHours(18, 0, 0, 0);
+  }
+  return d;
+}
+
+// Format a UTC Date as short ET time string: "Fri 2pm" or "Fri 2:30pm"
+function fmtET(utcDate) {
+  const DAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const et = new Date(utcDate.toLocaleString('en-US', {timeZone:'America/New_York'}));
+  const h = et.getHours(), m = et.getMinutes();
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const mStr = m > 0 ? ':' + String(m).padStart(2,'0') : '';
+  return DAY[et.getDay()] + ' ' + h12 + mStr + ampm;
+}
+
+// Format a date range as compact ET string: "Thu 2pm – Fri 2pm"
+function fmtETRange(utcStart, utcEnd) {
+  return fmtET(utcStart) + ' – ' + fmtET(utcEnd);
+}
+
+// Get the UTC Date for issueTime + offsetHours
+function wpcWindowStart(issueUTC, offsetHrs) {
+  return new Date(issueUTC.getTime() + offsetHrs * 3600000);
+}
+
+// Build all WPC slot metadata from the current issue time
+function buildWpcSlots() {
+  const issue = getLastWpcIssueUTC();
+  const nowUTC = new Date();
+
+  // 6-hr slots: offsets 0,6,12,18 (D1), 24,30,36,42 (D2), 48,54,60,66 (D3)
+  const sixHrOffsets = [0,6,12,18, 24,30,36,42, 48,54,60,66];
+  const slots6hr = sixHrOffsets.map((off, i) => {
+    const start = wpcWindowStart(issue, off);
+    const end   = wpcWindowStart(issue, off + 6);
+    const past  = end <= nowUTC;
+    const layerNum = WPC_6HR_LAYERS[i];
+    const dayGroup = Math.floor(i / 4); // 0=D1,1=D2,2=D3
+    return { start, end, past, layerNum, dayGroup,
+      label: fmtET(start),           // short: "Fri 2pm"
+      fullLabel: fmtETRange(start, end), // tooltip: "Fri 2pm – Fri 8pm"
+    };
+  });
+
+  // Group by day
+  const slotsByDay = [
+    { slots: sixHrOffsets.slice(0,4).map((_,i) => slots6hr[i]),   dayLabel: fmtET(wpcWindowStart(issue, 0)).split(' ')[0] },
+    { slots: sixHrOffsets.slice(4,8).map((_,i) => slots6hr[i+4]), dayLabel: fmtET(wpcWindowStart(issue, 24)).split(' ')[0] },
+    { slots: sixHrOffsets.slice(8).map((_,i) => slots6hr[i+8]),   dayLabel: fmtET(wpcWindowStart(issue, 48)).split(' ')[0] },
+  ];
+
+  // Daily: Day1=0-24hr, Day2=24-48hr, Day3=48-72hr, D4-5=72-120hr
+  const daily = [
+    { key:'d0',  layerNum:1,  label: fmtETRange(wpcWindowStart(issue,0),  wpcWindowStart(issue,24)),  short: 'Day 1' },
+    { key:'d1',  layerNum:2,  label: fmtETRange(wpcWindowStart(issue,24), wpcWindowStart(issue,48)),  short: 'Day 2' },
+    { key:'d2',  layerNum:3,  label: fmtETRange(wpcWindowStart(issue,48), wpcWindowStart(issue,72)),  short: 'Day 3' },
+    { key:'d45', layerNum:4,  label: fmtETRange(wpcWindowStart(issue,72), wpcWindowStart(issue,120)), short: 'D4–5' },
+  ];
+
+  // Multi-day: cumulative from issue
+  const multi = [
+    { key:'1-3', layerNum:8,  label: fmtETRange(wpcWindowStart(issue,0), wpcWindowStart(issue,72)),  short: 'D1–3' },
+    { key:'1-5', layerNum:9,  label: fmtETRange(wpcWindowStart(issue,0), wpcWindowStart(issue,120)), short: 'D1–5' },
+    { key:'1-7', layerNum:10, label: fmtETRange(wpcWindowStart(issue,0), wpcWindowStart(issue,168)), short: 'D1–7' },
+  ];
+
+  return { slotsByDay, daily, multi, issue };
+}
+
+// Compute once at load
+const WPC_SLOTS = buildWpcSlots();
 
 let fsPanelOpen = false;
 let fsActiveTab = 'obs';
@@ -1978,69 +2240,60 @@ function _applyWmsLayer(wmsUrl, layerName) {
   }
 }
 
-// Build 6-hr grid
+// Build fullscreen 6hr grid
 (function build6hr() {
   const wrap = document.getElementById('fs-sixhr-grid');
   if (!wrap) return;
-  [0,1,2].forEach(di => {
+  WPC_SLOTS.slotsByDay.forEach(dayGroup => {
     const dl = document.createElement('div');
     dl.className = 'fs-day-label';
-    dl.textContent = fsDayNames[di];
+    dl.textContent = dayGroup.dayLabel;
     wrap.appendChild(dl);
     const row = document.createElement('div');
     row.className = 'fs-btn-grid4';
     row.style.marginBottom = '2px';
-    FS_SLOTS.forEach((slot, si) => {
-      const past = di===0 && FS_SLOT_H[si]+6 <= _nowHourET;
-      const layerNum = WPC_6HR_LAYERS[di*4+si];
-      const label = fsDayNames[di]+' '+slot;
+    dayGroup.slots.forEach(slot => {
       const btn = document.createElement('button');
-      btn.className = 'fs-lopt' + (past?' past':'');
-      btn.textContent = slot;
-      btn.style.padding = '6px 0';
-      if (!past) btn.onclick = () => fsPicker_selFcast(btn, WMS_WPC, layerNum, label);
+      btn.className = 'fs-lopt' + (slot.past ? ' past' : '');
+      btn.textContent = slot.label;
+      btn.title = slot.fullLabel;
+      btn.style.padding = '6px 2px';
+      btn.style.fontSize = '10px';
+      if (!slot.past) btn.onclick = () => fsPicker_selFcast(btn, WMS_WPC, slot.layerNum, slot.fullLabel);
       row.appendChild(btn);
     });
     wrap.appendChild(row);
   });
 })();
 
-// Build daily grid
+// Build fullscreen daily grid
 (function buildDaily() {
   const g = document.getElementById('fs-daily-grid');
   if (!g) return;
-  const opts = [
-    {label:fsDayNames[0], sub:'24hr', key:'d0'},
-    {label:fsDayNames[1], sub:'24hr', key:'d1'},
-    {label:fsDayNames[2], sub:'24hr', key:'d2'},
-    {label:'D4–5',        sub:'48hr', key:'d45'},
-  ];
-  opts.forEach(o => {
+  WPC_SLOTS.daily.forEach(o => {
     const btn = document.createElement('button');
     btn.className = 'fs-lopt';
-    btn.innerHTML = `<div>${o.label}</div><div class="fs-opt-sub">${o.sub}</div>`;
-    btn.onclick = () => fsPicker_selFcast(btn, WMS_WPC, WPC_DAILY_LAYERS[o.key], o.label+' QPF');
+    btn.title = o.label;
+    btn.innerHTML = '<div style="font-weight:600">' + o.short + '</div><div class="fs-opt-sub" style="font-size:8px;line-height:1.3">' + o.label + '</div>';
+    btn.onclick = () => fsPicker_selFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
     g.appendChild(btn);
   });
 })();
 
-// Build multi-day grid
+// Build fullscreen multi grid
 (function buildMulti() {
   const g = document.getElementById('fs-multi-grid');
   if (!g) return;
-  const opts = [
-    {label:'D1–3', sub:'72hr',  key:'1-3'},
-    {label:'D1–5', sub:'120hr', key:'1-5'},
-    {label:'D1–7', sub:'168hr', key:'1-7'},
-  ];
-  opts.forEach(o => {
+  WPC_SLOTS.multi.forEach(o => {
     const btn = document.createElement('button');
     btn.className = 'fs-lopt';
-    btn.innerHTML = `<div>${o.label}</div><div class="fs-opt-sub">${o.sub}</div>`;
-    btn.onclick = () => fsPicker_selFcast(btn, WMS_WPC, WPC_MULTI_LAYERS[o.key], o.label+' QPF');
+    btn.title = o.label;
+    btn.innerHTML = '<div style="font-weight:600">' + o.short + '</div><div class="fs-opt-sub" style="font-size:8px;line-height:1.3">' + o.label + '</div>';
+    btn.onclick = () => fsPicker_selFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
     g.appendChild(btn);
   });
 })();
+
 
 </script>
 </body>
