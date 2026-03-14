@@ -1969,92 +1969,6 @@ document.addEventListener('click', (e) => {
   if (wrap && !wrap.contains(e.target) && fsPanelOpen) toggleFsPicker();
 });
 
-// ─── SIDEBAR OBS/FORECAST TABS ────────────────────────────────────────────────
-function sbSetTab(tab) {
-  document.getElementById('sb-obs-panel').style.display   = tab==='obs'   ? '' : 'none';
-  document.getElementById('sb-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
-  document.getElementById('sb-tab-obs').classList.toggle('active',   tab==='obs');
-  document.getElementById('sb-tab-fcast').classList.toggle('active', tab==='fcast');
-  // Update header label
-  document.getElementById('utc-clock'); // no-op, just ensure DOM ready
-}
-
-function sbSetFM(mode) {
-  ['6hr','daily','multi'].forEach(m => {
-    document.getElementById('sb-mode-'+m).style.display = m===mode ? '' : 'none';
-    document.getElementById('sb-fm-'+m).classList.toggle('active', m===mode);
-  });
-}
-
-function sbSelFcast(btn, wmsUrl, layerNum, label) {
-  document.querySelectorAll('#sb-fcast-panel .layer-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  state.layer = '__wpc__' + layerNum;
-  state.layerLabel = label;
-  state.wpcLayerNum = layerNum;
-  document.getElementById('layer-label').textContent = label;
-  const fsLbl = document.getElementById('fs-layer-badge');
-  if (fsLbl) fsLbl.textContent = label;
-  fsPicker_setLabel(label);
-  _applyWmsLayer(wmsUrl, String(layerNum));
-  if (state.selectedLat !== null) queryRainfall(state.selectedLat, state.selectedLng);
-  loadSavedRain();
-}
-
-// Build sidebar 6hr grid
-(function sbBuild6hr() {
-  const wrap = document.getElementById('sb-sixhr-grid');
-  if (!wrap) return;
-  WPC_SLOTS.slotsByDay.forEach(dayGroup => {
-    const dl = document.createElement('div');
-    dl.className = 'sb-day-label';
-    dl.textContent = dayGroup.dayLabel;
-    wrap.appendChild(dl);
-    const row = document.createElement('div');
-    row.className = 'layer-grid';
-    row.style.marginBottom = '2px';
-    dayGroup.slots.forEach(slot => {
-      const btn = document.createElement('button');
-      btn.className = 'layer-btn' + (slot.past ? '' : '');
-      btn.style.opacity = slot.past ? '0.35' : '1';
-      btn.style.textDecoration = slot.past ? 'line-through' : '';
-      btn.title = slot.fullLabel;
-      btn.innerHTML = `<span class="lb-period" style="font-size:11px">${slot.label}</span>QPF`;
-      if (!slot.past) btn.onclick = () => sbSelFcast(btn, WMS_WPC, slot.layerNum, slot.fullLabel);
-      row.appendChild(btn);
-    });
-    wrap.appendChild(row);
-  });
-})();
-
-// Build sidebar daily grid
-(function sbBuildDaily() {
-  const g = document.getElementById('sb-daily-grid');
-  if (!g) return;
-  WPC_SLOTS.daily.forEach(o => {
-    const btn = document.createElement('button');
-    btn.className = 'layer-btn';
-    btn.title = o.label;
-    btn.innerHTML = `<span class="lb-period" style="font-size:11px">${o.short}</span><span style="font-size:8px;display:block;margin-top:1px;color:inherit;opacity:0.7">${o.label}</span>`;
-    btn.onclick = () => sbSelFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
-    g.appendChild(btn);
-  });
-})();
-
-// Build sidebar multi grid
-(function sbBuildMulti() {
-  const g = document.getElementById('sb-multi-grid');
-  if (!g) return;
-  WPC_SLOTS.multi.forEach(o => {
-    const btn = document.createElement('button');
-    btn.className = 'layer-btn';
-    btn.title = o.label;
-    btn.innerHTML = `<span class="lb-period" style="font-size:12px">${o.short}</span><span style="font-size:8px;display:block;margin-top:1px;color:inherit;opacity:0.7">${o.label}</span>`;
-    btn.onclick = () => sbSelFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
-    g.appendChild(btn);
-  });
-})();
-
 const WMS_WPC = 'https://mapservices.weather.noaa.gov/vector/services/precip/wpc_qpf/MapServer/WMSServer';
 
 // WPC 6-hr layer IDs — offsets from last issue time
@@ -2151,6 +2065,7 @@ function buildWpcSlots() {
 // Compute once at load
 const WPC_SLOTS = buildWpcSlots();
 
+// ─── FULLSCREEN LAYER PICKER STATE & FUNCTIONS ───────────────────────────────
 let fsPanelOpen = false;
 let fsActiveTab = 'obs';
 let fsForecastMode = '6hr';
@@ -2163,13 +2078,15 @@ function toggleFsPicker() {
 }
 
 function fsPicker_setLabel(text) {
-  document.getElementById('fs-pill-label').textContent = text;
-  document.getElementById('fs-layer-badge').textContent = text;
+  const lbl = document.getElementById('fs-pill-label');
+  const badge = document.getElementById('fs-layer-badge');
+  if (lbl) lbl.textContent = text;
+  if (badge) badge.textContent = text;
 }
 
 function fsPicker_setTab(tab) {
   fsActiveTab = tab;
-  document.getElementById('fs-obs-panel').style.display   = tab==='obs' ? '' : 'none';
+  document.getElementById('fs-obs-panel').style.display   = tab==='obs'   ? '' : 'none';
   document.getElementById('fs-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
   document.getElementById('fs-tab-obs').className   = 'fs-tab' + (tab==='obs'   ? ' obs-active'   : '');
   document.getElementById('fs-tab-fcast').className = 'fs-tab' + (tab==='fcast' ? ' fcast-active' : '');
@@ -2186,15 +2103,12 @@ function fsPicker_setFM(mode) {
 }
 
 function fsPicker_selObs(btn, layerId, label) {
-  // Update sidebar buttons too
-  document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll(`.layer-btn`).forEach(b => {
+  document.querySelectorAll('.layer-btn').forEach(b => {
     if (b.getAttribute('onclick') && b.getAttribute('onclick').includes(layerId)) b.classList.add('active');
+    else if (b.closest('#sb-obs-panel') || b.closest('.layer-grid')) {} // leave sidebar alone
   });
-  // Update picker highlight
   document.querySelectorAll('#fs-obs-panel .fs-lopt').forEach(b => b.classList.remove('obs-sel'));
   btn.classList.add('obs-sel');
-  // Switch to MRMS WMS
   state.layer = layerId;
   state.layerLabel = label;
   fsPicker_setLabel(label);
@@ -2206,23 +2120,20 @@ function fsPicker_selObs(btn, layerId, label) {
 function fsPicker_selFcast(btn, wmsUrl, layerNum, label) {
   document.querySelectorAll('#fs-fcast-panel .fs-lopt:not(.past)').forEach(b => b.classList.remove('fcast-sel'));
   btn.classList.add('fcast-sel');
-  state.layer = '__wpc__' + layerNum; // special marker so queryRainfall knows it's WPC
+  state.layer = '__wpc__' + layerNum;
   state.layerLabel = label;
   state.wpcLayerNum = layerNum;
   fsPicker_setLabel(label);
-  _applyWmsLayer(WMS_WPC, String(layerNum));
-  // WPC uses GetFeatureInfo instead of pixel sampling — skip auto re-query for now
+  _applyWmsLayer(wmsUrl, String(layerNum));
   setTimeout(toggleFsPicker, 130);
 }
 
 function _applyWmsLayer(wmsUrl, layerName) {
-  // Desktop map
   if (state.wmsLayer) map.removeLayer(state.wmsLayer);
   state.wmsLayer = L.tileLayer.wms(wmsUrl, {
     layers: layerName, format: 'image/png', transparent: true,
     opacity: 0.70, attribution: 'NOAA', version: '1.1.1',
   }).addTo(map);
-  // Mobile fullscreen map
   if (mobileFullMap && state.wmsLayerMobile) {
     mobileFullMap.removeLayer(state.wmsLayerMobile);
     state.wmsLayerMobile = L.tileLayer.wms(wmsUrl, {
@@ -2230,7 +2141,6 @@ function _applyWmsLayer(wmsUrl, layerName) {
       opacity: 0.70, version: '1.1.1',
     }).addTo(mobileFullMap);
   }
-  // Mobile preview map
   if (mobilePreviewMap) {
     mobilePreviewMap.eachLayer(l => { if (l.options && l.options.layers) mobilePreviewMap.removeLayer(l); });
     L.tileLayer.wms(wmsUrl, {
@@ -2239,6 +2149,92 @@ function _applyWmsLayer(wmsUrl, layerName) {
     }).addTo(mobilePreviewMap);
   }
 }
+
+
+function sbSetTab(tab) {
+  document.getElementById('sb-obs-panel').style.display   = tab==='obs'   ? '' : 'none';
+  document.getElementById('sb-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
+  document.getElementById('sb-tab-obs').classList.toggle('active',   tab==='obs');
+  document.getElementById('sb-tab-fcast').classList.toggle('active', tab==='fcast');
+  // Update header label
+  document.getElementById('utc-clock'); // no-op, just ensure DOM ready
+}
+
+function sbSetFM(mode) {
+  ['6hr','daily','multi'].forEach(m => {
+    document.getElementById('sb-mode-'+m).style.display = m===mode ? '' : 'none';
+    document.getElementById('sb-fm-'+m).classList.toggle('active', m===mode);
+  });
+}
+
+function sbSelFcast(btn, wmsUrl, layerNum, label) {
+  document.querySelectorAll('#sb-fcast-panel .layer-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.layer = '__wpc__' + layerNum;
+  state.layerLabel = label;
+  state.wpcLayerNum = layerNum;
+  document.getElementById('layer-label').textContent = label;
+  const fsLbl = document.getElementById('fs-layer-badge');
+  if (fsLbl) fsLbl.textContent = label;
+  fsPicker_setLabel(label);
+  _applyWmsLayer(wmsUrl, String(layerNum));
+  if (state.selectedLat !== null) queryRainfall(state.selectedLat, state.selectedLng);
+  loadSavedRain();
+}
+
+// Build sidebar 6hr grid
+(function sbBuild6hr() {
+  const wrap = document.getElementById('sb-sixhr-grid');
+  if (!wrap) return;
+  WPC_SLOTS.slotsByDay.forEach(dayGroup => {
+    const dl = document.createElement('div');
+    dl.className = 'sb-day-label';
+    dl.textContent = dayGroup.dayLabel;
+    wrap.appendChild(dl);
+    const row = document.createElement('div');
+    row.className = 'layer-grid';
+    row.style.marginBottom = '2px';
+    dayGroup.slots.forEach(slot => {
+      const btn = document.createElement('button');
+      btn.className = 'layer-btn' + (slot.past ? '' : '');
+      btn.style.opacity = slot.past ? '0.35' : '1';
+      btn.style.textDecoration = slot.past ? 'line-through' : '';
+      btn.title = slot.fullLabel;
+      btn.innerHTML = `<span class="lb-period" style="font-size:11px">${slot.label}</span>QPF`;
+      if (!slot.past) btn.onclick = () => sbSelFcast(btn, WMS_WPC, slot.layerNum, slot.fullLabel);
+      row.appendChild(btn);
+    });
+    wrap.appendChild(row);
+  });
+})();
+
+// Build sidebar daily grid
+(function sbBuildDaily() {
+  const g = document.getElementById('sb-daily-grid');
+  if (!g) return;
+  WPC_SLOTS.daily.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'layer-btn';
+    btn.title = o.label;
+    btn.innerHTML = `<span class="lb-period" style="font-size:11px">${o.short}</span><span style="font-size:8px;display:block;margin-top:1px;color:inherit;opacity:0.7">${o.label}</span>`;
+    btn.onclick = () => sbSelFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
+    g.appendChild(btn);
+  });
+})();
+
+// Build sidebar multi grid
+(function sbBuildMulti() {
+  const g = document.getElementById('sb-multi-grid');
+  if (!g) return;
+  WPC_SLOTS.multi.forEach(o => {
+    const btn = document.createElement('button');
+    btn.className = 'layer-btn';
+    btn.title = o.label;
+    btn.innerHTML = `<span class="lb-period" style="font-size:12px">${o.short}</span><span style="font-size:8px;display:block;margin-top:1px;color:inherit;opacity:0.7">${o.label}</span>`;
+    btn.onclick = () => sbSelFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
+    g.appendChild(btn);
+  });
+})();
 
 // Build fullscreen 6hr grid
 (function build6hr() {
@@ -2293,8 +2289,6 @@ function _applyWmsLayer(wmsUrl, layerName) {
     g.appendChild(btn);
   });
 })();
-
-
 </script>
 </body>
 </html>
