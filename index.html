@@ -2266,25 +2266,36 @@ function radarTileUrl(prod, ts) {
 }
 
 async function radarFetchScans(prod) {
-  // IEM JSON API: returns list of available scan times for given radar+product
+  // IEM JSON API for available scan times — try with CORS
   const now = new Date();
   const y = now.getUTCFullYear();
   const mo = String(now.getUTCMonth()+1).padStart(2,'0');
   const d  = String(now.getUTCDate()).padStart(2,'0');
-  const url = `https://mesonet.agron.iastate.edu/json/radar?operation=list&radar=${RADAR_SITE}&product=${prod}&date=${y}-${mo}-${d}&fmt=json`;
+  const url = 'https://mesonet.agron.iastate.edu/json/radar?operation=list&radar=' +
+    RADAR_SITE + '&product=' + prod + '&date=' + y + '-' + mo + '-' + d + '&fmt=json';
   try {
-    const resp = await fetch(url);
+    const resp = await fetch(url, {mode:'cors'});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
-    // Returns array of UTC timestamps like "2026-03-14T10:45:00Z"
-    if (data && data.scans && data.scans.length > 0) {
-      return data.scans.map(s => ({
-        utc: new Date(s.ts || s),
-        ts: (s.ts || s).replace(/[-:TZ]/g,'').slice(0,12),
-        label: radarFmtTimeET(new Date(s.ts || s))
-      })).slice(-13); // last 13 frames (~65 min)
+    // Possible response shapes
+    const list = data.scans || data.data || data.times || null;
+    if (list && list.length > 0) {
+      const frames = list.map(s => {
+        const raw = s.ts || s.valid || s.time || s;
+        const utc = new Date(raw);
+        const ts = utc.getUTCFullYear() +
+          String(utc.getUTCMonth()+1).padStart(2,'0') +
+          String(utc.getUTCDate()).padStart(2,'0') +
+          String(utc.getUTCHours()).padStart(2,'0') +
+          String(utc.getUTCMinutes()).padStart(2,'0');
+        return { utc, ts, label: radarFmtTimeET(utc) };
+      });
+      // Filter to last 60 min and return last 13 frames
+      const cutoff = Date.now() - RADAR_LOOP_MINUTES * 60000;
+      return frames.filter(f => f.utc.getTime() > cutoff).slice(-13);
     }
   } catch(e) {
-    console.warn('IEM scan list failed, using generated times', e);
+    console.warn('IEM scan list fetch failed:', e.message);
   }
   return null;
 }
@@ -2308,6 +2319,7 @@ async function radarInitLoop(prod) {
 
   // Try to fetch real scan times from IEM JSON API
   let frames = await radarFetchScans(prod);
+  console.log('Radar frames from API:', frames ? frames.length + ' frames' : 'null — using fallback');
 
   if (!frames) {
     // Fallback: generate 5-min intervals (may have some blank frames)
@@ -2368,7 +2380,8 @@ function radarShowFrame(idx) {
   document.getElementById('radar-timestamp').textContent = frame.label;
   document.getElementById('radar-frame-count').textContent = (idx+1) + '/' + radarFrames.length;
   document.getElementById('radar-slider').value = idx;
-  radarApplyTile(radarActiveProd, frame.ts);
+  console.log('Radar frame:', idx, frame.ts, frame.label);
+  radarApplyTile(radarActiveProd, frame.ts, true); // always update both maps
 }
 
 function radarTogglePlay() {
