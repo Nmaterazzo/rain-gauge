@@ -2047,12 +2047,14 @@ function buildWpcSlots() {
     { layerNum:5, label: fmtETRange(wpcWindowStart(day1,120), wpcWindowStart(day1,168)), short: 'D6–7',  sub: '48hr' },
   ];
 
-  // Multi-day: cumulative from issue — IDs verified: 8=48hr D1-2, 9=72hr D1-3, 10=120hr D1-5, 11=168hr D1-7
+  // Multi-day: cumulative from Day 1 (12Z)
+  // Empirically confirmed layer→product mapping from live WMS:
+  // 8=D1-7 (168hr), 9=D1-3 (72hr), 10=D1-5 (120hr), 11=D1-2 (48hr)
   const multi = [
-    { key:'1-2', layerNum:8,  label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,48)),  short: 'D1–2' },
-    { key:'1-3', layerNum:9,  label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,72)),  short: 'D1–3' },
-    { key:'1-5', layerNum:10, label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,120)), short: 'D1–5' },
-    { key:'1-7', layerNum:11, label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,168)), short: 'D1–7' },
+    { layerNum:11, label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,48)),  short:'D1–2' },
+    { layerNum:9,  label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,72)),  short:'D1–3' },
+    { layerNum:10, label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,120)), short:'D1–5' },
+    { layerNum:8,  label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,168)), short:'D1–7' },
   ];
 
   return { slotsByDay, daily, multi, day1 };
