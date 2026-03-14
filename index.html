@@ -2233,13 +2233,16 @@ function buildWpcSlots() {
 const WPC_SLOTS = buildWpcSlots();
 
 // ─── RADAR LOOP ENGINE ────────────────────────────────────────────────────────
-// Uses IEM tile.py slippy-map tiles — no WMS, no CORS, no exact scan time needed.
-// URL format: /cache/tile.py/1.0.0/ridge::TBW-N0Q-YYYYMMDDHHII/{z}/{x}/{y}.png
-// Timestamp 0 = latest scan. Actual scan times fetched from IEM JSON API.
+// Uses IEM WMS-T (n0q-t.cgi) with TIME= parameter.
+// WMS-T finds nearest available scan automatically — no exact timestamps needed.
+// The sidebar also shows radar on the desktop map.
 
 const RADAR_SITE = 'TBW';
 const RADAR_LOOP_MINUTES = 60;
-const RADAR_INTERVAL_MS = 550;
+const RADAR_INTERVAL_MS = 600;
+
+// WMS-T base — accepts TIME=YYYY-MM-DDTHH:MMZ, returns nearest scan
+const RADAR_WMST_BASE = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q-t.cgi';
 
 let radarFrames = [];
 let radarCurrentFrame = 0;
@@ -2247,60 +2250,57 @@ let radarPlaying = false;
 let radarPlayTimer = null;
 let radarActiveProd = 'N0Q';
 let radarLoopReady = false;
-let radarTileLayer = null;
-let radarTileLayerDesktop = null;
+let radarLayer = null; // single tracked layer — shared across both maps
 
 function radarFmtTimeET(utc) {
   const et = new Date(utc.toLocaleString('en-US', {timeZone:'America/New_York'}));
   const h = et.getHours(), m = et.getMinutes();
   const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h%12 === 0 ? 12 : h%12;
+  const h12 = h%12===0 ? 12 : h%12;
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   return days[et.getDay()] + ' ' + h12 + ':' + String(m).padStart(2,'0') + ' ' + ampm + ' ET';
 }
 
-function radarTileUrl(prod, ts) {
-  // ts = 'YYYYMMDDHHII' or '0' for latest
-  return 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/ridge::' +
-    RADAR_SITE + '-' + prod + '-' + ts + '/{z}/{x}/{y}.png';
+function radarIsoUTC(utc) {
+  // Format as YYYY-MM-DDTHH:MMZ for WMS-T TIME parameter
+  return utc.getUTCFullYear() + '-' +
+    String(utc.getUTCMonth()+1).padStart(2,'0') + '-' +
+    String(utc.getUTCDate()).padStart(2,'0') + 'T' +
+    String(utc.getUTCHours()).padStart(2,'0') + ':' +
+    String(utc.getUTCMinutes()).padStart(2,'0') + 'Z';
 }
 
-async function radarFetchScans(prod) {
-  // IEM JSON API for available scan times — try with CORS
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const mo = String(now.getUTCMonth()+1).padStart(2,'0');
-  const d  = String(now.getUTCDate()).padStart(2,'0');
-  const url = 'https://mesonet.agron.iastate.edu/json/radar?operation=list&radar=' +
-    RADAR_SITE + '&product=' + prod + '&date=' + y + '-' + mo + '-' + d + '&fmt=json';
-  try {
-    const resp = await fetch(url, {mode:'cors'});
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    // Possible response shapes
-    const list = data.scans || data.data || data.times || null;
-    if (list && list.length > 0) {
-      const frames = list.map(s => {
-        const raw = s.ts || s.valid || s.time || s;
-        const utc = new Date(raw);
-        const ts = utc.getUTCFullYear() +
-          String(utc.getUTCMonth()+1).padStart(2,'0') +
-          String(utc.getUTCDate()).padStart(2,'0') +
-          String(utc.getUTCHours()).padStart(2,'0') +
-          String(utc.getUTCMinutes()).padStart(2,'0');
-        return { utc, ts, label: radarFmtTimeET(utc) };
-      });
-      // Filter to last 60 min and return last 13 frames
-      const cutoff = Date.now() - RADAR_LOOP_MINUTES * 60000;
-      return frames.filter(f => f.utc.getTime() > cutoff).slice(-13);
-    }
-  } catch(e) {
-    console.warn('IEM scan list fetch failed:', e.message);
+// Which Leaflet map to target (fullscreen if open, else desktop)
+function radarTargetMap() {
+  const fs = document.getElementById('map-fullscreen');
+  if (fs && fs.classList.contains('open') && mobileFullMap) return mobileFullMap;
+  return map;
+}
+
+function radarRemoveLayer() {
+  if (radarLayer) {
+    try { map.removeLayer(radarLayer); } catch(e){}
+    try { if (mobileFullMap) mobileFullMap.removeLayer(radarLayer); } catch(e){}
+    radarLayer = null;
   }
-  return null;
 }
 
-async function radarInitLoop(prod) {
+function radarApplyTime(utc) {
+  radarRemoveLayer();
+  const timeParam = radarIsoUTC(utc);
+  const targetMap = radarTargetMap();
+  radarLayer = L.tileLayer.wms(RADAR_WMST_BASE, {
+    layers: 'nexrad-n0q-wmst',
+    format: 'image/png',
+    transparent: true,
+    opacity: 0.85,
+    version: '1.1.1',
+    time: timeParam,
+    className: 'radar-tile',
+  }).addTo(targetMap);
+}
+
+function radarInitLoop(prod) {
   radarActiveProd = prod;
   radarLoopReady = false;
   radarPlaying = false;
@@ -2308,86 +2308,50 @@ async function radarInitLoop(prod) {
   const playBtn = document.getElementById('radar-play-btn');
   if (playBtn) playBtn.textContent = '▶';
   const loadEl = document.getElementById('radar-loading');
-  const tsEl = document.getElementById('radar-timestamp');
-  const cntEl = document.getElementById('radar-frame-count');
-  if (loadEl) loadEl.textContent = 'Fetching scan times…';
-  if (tsEl) tsEl.textContent = '—';
-  if (cntEl) cntEl.textContent = '';
+  const tsEl   = document.getElementById('radar-timestamp');
+  const cntEl  = document.getElementById('radar-frame-count');
 
-  // Show latest frame immediately while fetching scan list
-  radarApplyTile(prod, '0', true);
-
-  // Try to fetch real scan times from IEM JSON API
-  let frames = await radarFetchScans(prod);
-  console.log('Radar frames from API:', frames ? frames.length + ' frames' : 'null — using fallback');
-
-  if (!frames) {
-    // Fallback: generate 5-min intervals (may have some blank frames)
-    const now = new Date();
-    const baseMs = Math.floor(now.getTime() / (5*60000)) * (5*60000);
-    frames = [];
-    for (let i = Math.floor(RADAR_LOOP_MINUTES/5); i >= 0; i--) {
-      const t = new Date(baseMs - i*5*60000);
-      const ts = t.getUTCFullYear() +
-        String(t.getUTCMonth()+1).padStart(2,'0') +
-        String(t.getUTCDate()).padStart(2,'0') +
-        String(t.getUTCHours()).padStart(2,'0') +
-        String(t.getUTCMinutes()).padStart(2,'0');
-      frames.push({ utc: t, ts, label: radarFmtTimeET(t) });
-    }
+  // Build frame list: 5-min intervals over last 60 min
+  // WMS-T finds nearest scan so approximate times work fine
+  const now = new Date();
+  const baseMs = Math.floor(now.getTime() / (5*60000)) * (5*60000);
+  const frames = [];
+  const count = Math.floor(RADAR_LOOP_MINUTES / 5) + 1;
+  for (let i = count - 1; i >= 0; i--) {
+    const t = new Date(baseMs - i * 5 * 60000);
+    frames.push({ utc: t, label: radarFmtTimeET(t) });
   }
-
   radarFrames = frames;
   radarCurrentFrame = frames.length - 1;
 
   const slider = document.getElementById('radar-slider');
   if (slider) { slider.max = frames.length - 1; slider.value = frames.length - 1; }
   if (cntEl) cntEl.textContent = frames.length + ' frames';
-  if (tsEl) tsEl.textContent = frames[frames.length-1].label;
-  if (loadEl) loadEl.textContent = '← drag to scrub  ▶ to loop';
+  if (tsEl)  tsEl.textContent  = frames[frames.length - 1].label;
+  if (loadEl) loadEl.textContent = '← drag to scrub  ▶ to animate';
 
+  // Show latest frame
+  radarApplyTime(frames[frames.length - 1].utc);
   radarLoopReady = true;
-}
-
-function radarApplyTile(prod, ts, addToDesktop) {
-  const url = radarTileUrl(prod, ts);
-
-  // Fullscreen map
-  if (mobileFullMap) {
-    if (radarTileLayer) { try { mobileFullMap.removeLayer(radarTileLayer); } catch(e){} }
-    radarTileLayer = L.tileLayer(url, {
-      opacity: 0.85,
-      className: 'radar-tile',
-      zIndex: 300,
-    }).addTo(mobileFullMap);
-  }
-
-  // Desktop map
-  if (addToDesktop !== false) {
-    if (radarTileLayerDesktop) { try { map.removeLayer(radarTileLayerDesktop); } catch(e){} }
-    if (state.wmsLayer) { try { map.removeLayer(state.wmsLayer); } catch(e){} state.wmsLayer = null; }
-    radarTileLayerDesktop = L.tileLayer(url, {
-      opacity: 0.85,
-      className: 'radar-tile',
-      zIndex: 300,
-    }).addTo(map);
-  }
 }
 
 function radarShowFrame(idx) {
   const frame = radarFrames[idx];
   if (!frame) return;
-  document.getElementById('radar-timestamp').textContent = frame.label;
-  document.getElementById('radar-frame-count').textContent = (idx+1) + '/' + radarFrames.length;
-  document.getElementById('radar-slider').value = idx;
-  console.log('Radar frame:', idx, frame.ts, frame.label);
-  radarApplyTile(radarActiveProd, frame.ts, true); // always update both maps
+  const tsEl  = document.getElementById('radar-timestamp');
+  const cntEl = document.getElementById('radar-frame-count');
+  const slider = document.getElementById('radar-slider');
+  if (tsEl)   tsEl.textContent   = frame.label;
+  if (cntEl)  cntEl.textContent  = (idx+1) + '/' + radarFrames.length;
+  if (slider) slider.value = idx;
+  radarApplyTime(frame.utc);
 }
 
 function radarTogglePlay() {
   if (!radarLoopReady) return;
   radarPlaying = !radarPlaying;
-  document.getElementById('radar-play-btn').textContent = radarPlaying ? '⏸' : '▶';
+  const btn = document.getElementById('radar-play-btn');
+  if (btn) btn.textContent = radarPlaying ? '⏸' : '▶';
   if (radarPlaying) {
     radarPlayTimer = setInterval(() => {
       radarCurrentFrame = (radarCurrentFrame + 1) % radarFrames.length;
@@ -2406,8 +2370,9 @@ function radarSeek(idx) {
 
 // CSS filter to suppress low dBZ noise
 const radarStyle = document.createElement('style');
-radarStyle.textContent = '.radar-tile { filter: saturate(2.5) contrast(1.5) brightness(1.1); }';
+radarStyle.textContent = '.leaflet-tile-pane .radar-tile { filter: saturate(3) contrast(1.6) brightness(1.1); }';
 document.head.appendChild(radarStyle);
+
 
 let fsPanelOpen = false;;
 let fsForecastMode = '6hr';
@@ -2434,6 +2399,13 @@ function fsPicker_setTab(tab) {
   document.getElementById('fs-tab-obs').className   = 'fs-tab' + (tab==='obs'   ? ' obs-active'   : '');
   document.getElementById('fs-tab-radar').className = 'fs-tab' + (tab==='radar' ? ' obs-active'   : '');
   document.getElementById('fs-tab-fcast').className = 'fs-tab' + (tab==='fcast' ? ' fcast-active' : '');
+  if (tab !== 'radar') {
+    const ctrl = document.getElementById('radar-controls');
+    if (ctrl) ctrl.classList.remove('visible');
+    radarPlaying = false;
+    clearInterval(radarPlayTimer);
+    radarRemoveLayer();
+  }
 }
 
 function fsPicker_setFM(mode) {
@@ -2508,7 +2480,9 @@ function sbSetTab(tab) {
     if (ctrl) ctrl.classList.remove('visible');
     radarPlaying = false;
     clearInterval(radarPlayTimer);
-    document.getElementById('radar-play-btn') && (document.getElementById('radar-play-btn').textContent = '▶');
+    const btn = document.getElementById('radar-play-btn');
+    if (btn) btn.textContent = '▶';
+    radarRemoveLayer();
   }
 }
 
