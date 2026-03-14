@@ -301,7 +301,7 @@
     /* Fullscreen layer picker pill */
     .fs-picker-wrap {
       position: absolute;
-      top: 16px; left: 16px;
+      top: 96px; left: 10px;
       z-index: 10001;
       width: 270px;
     }
@@ -1311,6 +1311,43 @@ function pixelToMm(r, g, b) {
   return bestMm;
 }
 
+// ─── WPC GetFeatureInfo point query ──────────────────────────────────────────
+async function fetchWpcAtPoint(lat, lng, layerNum) {
+  // Build a tiny 101x101 GetMap bbox around the point, then ask GetFeatureInfo
+  // at the centre pixel. WPC WMS supports application/geo+json response.
+  const delta = 0.1;
+  const minx = lng - delta, miny = lat - delta;
+  const maxx = lng + delta, maxy = lat + delta;
+  const W = 101, H = 101, cx = 51, cy = 51;
+
+  const params = new URLSearchParams({
+    SERVICE: 'WMS', VERSION: '1.3.0', REQUEST: 'GetFeatureInfo',
+    LAYERS: String(layerNum),
+    QUERY_LAYERS: String(layerNum),
+    INFO_FORMAT: 'application/geo+json',
+    FEATURE_COUNT: '1',
+    CRS: 'CRS:84',
+    BBOX: `${minx},${miny},${maxx},${maxy}`,
+    WIDTH: String(W), HEIGHT: String(H),
+    I: String(cx), J: String(cy),
+    FORMAT: 'image/png',
+  });
+
+  const url = `${WMS_WPC}?${params}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('WPC HTTP ' + resp.status);
+  const json = await resp.json();
+
+  if (!json.features || json.features.length === 0) return null;
+
+  // WPC returns QPF value in properties.qpf (in inches)
+  const props = json.features[0].properties;
+  const qpf = props.qpf ?? props.QPF ?? props.Qpf ?? null;
+  if (qpf === null || qpf === undefined) return null;
+  const inches = parseFloat(qpf);
+  return isNaN(inches) ? null : inches;
+}
+
 async function fetchRainfallAtPoint(lat, lng) {
   const SIZE = 11; // Bigger image = more stable centre pixel
   const delta = 0.04;
@@ -1376,12 +1413,14 @@ async function queryRainfall(lat, lng) {
   state.selectedLng = lng;
   state.lastValueIn = null;
 
+  const isWpc = state.layer && state.layer.startsWith('__wpc__');
+
   // UI: loading state
   document.getElementById('querying-badge').classList.add('show');
   const val = document.getElementById('readout-val');
   val.textContent = '···';
   val.className = 'readout-value';
-  document.getElementById('readout-unit').textContent = 'querying MRMS...';
+  document.getElementById('readout-unit').textContent = isWpc ? 'querying WPC forecast...' : 'querying MRMS...';
   document.getElementById('readout-coords').textContent =
     `${lat.toFixed(4)}°N  ${Math.abs(lng).toFixed(4)}°W`;
   document.getElementById('readout-ts').textContent = '';
@@ -1395,7 +1434,9 @@ async function queryRainfall(lat, lng) {
   showFsCard(null, lat, lng);
 
   try {
-    const inches = await fetchRainfallAtPoint(lat, lng);
+    const inches = isWpc
+      ? await fetchWpcAtPoint(lat, lng, state.wpcLayerNum)
+      : await fetchRainfallAtPoint(lat, lng);
     document.getElementById('querying-badge').classList.remove('show');
 
     if (inches === null) {
@@ -1406,7 +1447,7 @@ async function queryRainfall(lat, lng) {
     } else {
       state.lastValueIn = inches;
       displayRainfall(inches);
-      const label = LAYERS[state.layer] ? LAYERS[state.layer].label : state.layerLabel || '';
+      const label = isWpc ? (state.layerLabel || 'WPC QPF') : (LAYERS[state.layer] ? LAYERS[state.layer].label : state.layerLabel || '');
       updateFsCard(inches, label, lat, lng);
       document.getElementById('add-loc-btn').style.display = 'flex';
     }
@@ -1417,7 +1458,7 @@ async function queryRainfall(lat, lng) {
 
   } catch (err) {
     document.getElementById('querying-badge').classList.remove('show');
-    console.warn('MRMS query error:', err);
+    console.warn('Query error:', err);
     showReadoutError('Data unavailable — try again');
     showToast('⚠ Could not reach MRMS data source', true);
   }
@@ -1434,7 +1475,10 @@ function showReadoutError(msg) {
 // ─── DISPLAY RAINFALL ─────────────────────────────────────────────────────────
 function displayRainfall(inches) {
   const isMetric = state.unit === 'mm';
-  const maxScale = LAYERS[state.layer].maxIn;
+  const isWpc = state.layer && state.layer.startsWith('__wpc__');
+  const layerInfo = isWpc ? null : LAYERS[state.layer];
+  const maxScale = layerInfo ? layerInfo.maxIn : 10;
+  const layerLabel = layerInfo ? layerInfo.label : (state.layerLabel || 'WPC QPF');
   const val = document.getElementById('readout-val');
 
   // null = no data / dry — show 0 cleanly, not TRACE
@@ -1442,7 +1486,7 @@ function displayRainfall(inches) {
     val.textContent = isMetric ? '0.0 mm' : '0.00"';
     val.className = 'readout-value';
     document.getElementById('readout-unit').textContent =
-      `no accumulation · ${LAYERS[state.layer].label}`;
+      `no accumulation · ${layerLabel}`;
     document.getElementById('rain-bar-wrap').style.display = 'block';
     setTimeout(() => { document.getElementById('rain-bar-fill').style.width = '0%'; }, 50);
     document.getElementById('rain-bar-labels').innerHTML = isMetric
@@ -1461,7 +1505,7 @@ function displayRainfall(inches) {
     : inches.toFixed(2) + '"';
   val.className = 'readout-value';
   document.getElementById('readout-unit').textContent =
-    `${isMetric ? 'millimeters' : 'inches'} · ${LAYERS[state.layer].label}`;
+    `${isMetric ? 'millimeters' : 'inches'} · ${layerLabel}`;
 
   // Rain bar
   const pct = Math.min(100, (inches / maxScale) * 100);
