@@ -1973,26 +1973,22 @@ const WMS_WPC = 'https://mapservices.weather.noaa.gov/vector/services/precip/wpc
 
 // WPC 6-hr layer IDs — offsets from last issue time
 const WPC_6HR_LAYERS  = [13,14,15,16, 17,18,19,20, 21,22,23,24];
-const WPC_DAILY_LAYERS  = { d0:1, d1:2, d2:3, d45:4 };
 
 // ── WPC ISSUE TIME HELPERS ────────────────────────────────────────────────────
-// WPC issues QPF at 06Z and 18Z daily.
-// All layer hour offsets (00-06hr, 06-12hr, etc.) are relative to the LAST issue time.
-// We calculate the last issue time in UTC, then convert each window boundary to ET.
+// WPC Day 1 is anchored to 12Z UTC (8am ET / 8am EDT).
+// Day 1 = 12Z day0 → 12Z day1, Day 2 = 12Z day1 → 12Z day2, etc.
+// The 4 six-hour slots within each day run: 12-18Z, 18-00Z, 00-06Z, 06-12Z
+// In ET (EDT=UTC-4): 8am-2pm, 2pm-8pm, 8pm-2am, 2am-8am
 
-function getLastWpcIssueUTC() {
-  const now = new Date(); // current UTC
+function getDay1StartUTC() {
+  const now = new Date();
   const utcH = now.getUTCHours();
   const d = new Date(now);
-  // Last issue is 18Z if we're past 18Z, else 06Z if past 06Z, else 18Z yesterday
-  if (utcH >= 18) {
-    d.setUTCHours(18, 0, 0, 0);
-  } else if (utcH >= 6) {
-    d.setUTCHours(6, 0, 0, 0);
-  } else {
+  // If before 12Z today, Day 1 started at 12Z yesterday
+  if (utcH < 12) {
     d.setUTCDate(d.getUTCDate() - 1);
-    d.setUTCHours(18, 0, 0, 0);
   }
+  d.setUTCHours(12, 0, 0, 0);
   return d;
 }
 
@@ -2019,18 +2015,16 @@ function wpcWindowStart(issueUTC, offsetHrs) {
 
 // Build all WPC slot metadata from the current issue time
 function buildWpcSlots() {
-  const issue = getLastWpcIssueUTC();
+  const day1 = getDay1StartUTC(); // 12Z anchor
   const nowUTC = new Date();
 
   // 6-hr slots: offsets 0,6,12,18 (D1), 24,30,36,42 (D2), 48,54,60,66 (D3)
   const sixHrOffsets = [0,6,12,18, 24,30,36,42, 48,54,60,66];
-  const slots6hr = sixHrOffsets.map((off, i) => {
-    const start = wpcWindowStart(issue, off);
-    const end   = wpcWindowStart(issue, off + 6);
+  const allSlots = sixHrOffsets.map((off, i) => {
+    const start = wpcWindowStart(day1, off);
+    const end   = wpcWindowStart(day1, off + 6);
     const past  = end <= nowUTC;
-    const layerNum = WPC_6HR_LAYERS[i];
-    const dayGroup = Math.floor(i / 4); // 0=D1,1=D2,2=D3
-    return { start, end, past, layerNum, dayGroup,
+    return { start, end, past, layerNum: WPC_6HR_LAYERS[i], dayGroup: Math.floor(i/4),
       label: fmtET(start),           // short: "Fri 2pm"
       fullLabel: fmtETRange(start, end), // tooltip: "Fri 2pm – Fri 8pm"
     };
@@ -2038,28 +2032,30 @@ function buildWpcSlots() {
 
   // Group by day
   const slotsByDay = [
-    { slots: sixHrOffsets.slice(0,4).map((_,i) => slots6hr[i]),   dayLabel: fmtET(wpcWindowStart(issue, 0)).split(' ')[0] },
-    { slots: sixHrOffsets.slice(4,8).map((_,i) => slots6hr[i+4]), dayLabel: fmtET(wpcWindowStart(issue, 24)).split(' ')[0] },
-    { slots: sixHrOffsets.slice(8).map((_,i) => slots6hr[i+8]),   dayLabel: fmtET(wpcWindowStart(issue, 48)).split(' ')[0] },
+    { slots: allSlots.slice(0,4),   dayLabel: fmtET(wpcWindowStart(day1, 0)).split(' ')[0] },
+    { slots: allSlots.slice(4,8), dayLabel: fmtET(wpcWindowStart(day1, 24)).split(' ')[0] },
+    { slots: allSlots.slice(8),   dayLabel: fmtET(wpcWindowStart(day1, 48)).split(' ')[0] },
   ];
 
-  // Daily: Day1=0-24hr, Day2=24-48hr, Day3=48-72hr, D4-5=72-120hr
+  // Daily: Day1=0-24hr, Day2=24-48hr, Day3=48-72hr, D4-5=72-120hr (48hr block), D6-7=120-168hr (48hr block)
+  // Note: WPC has no standalone Day 4. After Day 3 it jumps to 48hr blocks.
   const daily = [
-    { key:'d0',  layerNum:1,  label: fmtETRange(wpcWindowStart(issue,0),  wpcWindowStart(issue,24)),  short: 'Day 1' },
-    { key:'d1',  layerNum:2,  label: fmtETRange(wpcWindowStart(issue,24), wpcWindowStart(issue,48)),  short: 'Day 2' },
-    { key:'d2',  layerNum:3,  label: fmtETRange(wpcWindowStart(issue,48), wpcWindowStart(issue,72)),  short: 'Day 3' },
-    { key:'d45', layerNum:4,  label: fmtETRange(wpcWindowStart(issue,72), wpcWindowStart(issue,120)), short: 'D4–5' },
+    { layerNum:1, label: fmtETRange(wpcWindowStart(day1,0),   wpcWindowStart(day1,24)),  short: 'Day 1', sub: '24hr' },
+    { layerNum:2, label: fmtETRange(wpcWindowStart(day1,24),  wpcWindowStart(day1,48)),  short: 'Day 2', sub: '24hr' },
+    { layerNum:3, label: fmtETRange(wpcWindowStart(day1,48),  wpcWindowStart(day1,72)),  short: 'Day 3', sub: '24hr' },
+    { layerNum:4, label: fmtETRange(wpcWindowStart(day1,72),  wpcWindowStart(day1,120)), short: 'D4–5',  sub: '48hr' },
+    { layerNum:5, label: fmtETRange(wpcWindowStart(day1,120), wpcWindowStart(day1,168)), short: 'D6–7',  sub: '48hr' },
   ];
 
   // Multi-day: cumulative from issue — IDs verified: 8=48hr D1-2, 9=72hr D1-3, 10=120hr D1-5, 11=168hr D1-7
   const multi = [
-    { key:'1-2', layerNum:8,  label: fmtETRange(wpcWindowStart(issue,0), wpcWindowStart(issue,48)),  short: 'D1–2' },
-    { key:'1-3', layerNum:9,  label: fmtETRange(wpcWindowStart(issue,0), wpcWindowStart(issue,72)),  short: 'D1–3' },
-    { key:'1-5', layerNum:10, label: fmtETRange(wpcWindowStart(issue,0), wpcWindowStart(issue,120)), short: 'D1–5' },
-    { key:'1-7', layerNum:11, label: fmtETRange(wpcWindowStart(issue,0), wpcWindowStart(issue,168)), short: 'D1–7' },
+    { key:'1-2', layerNum:8,  label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,48)),  short: 'D1–2' },
+    { key:'1-3', layerNum:9,  label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,72)),  short: 'D1–3' },
+    { key:'1-5', layerNum:10, label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,120)), short: 'D1–5' },
+    { key:'1-7', layerNum:11, label: fmtETRange(wpcWindowStart(day1,0), wpcWindowStart(day1,168)), short: 'D1–7' },
   ];
 
-  return { slotsByDay, daily, multi, issue };
+  return { slotsByDay, daily, multi, day1 };
 }
 
 // Compute once at load
@@ -2212,11 +2208,12 @@ function sbSelFcast(btn, wmsUrl, layerNum, label) {
 (function sbBuildDaily() {
   const g = document.getElementById('sb-daily-grid');
   if (!g) return;
+  g.style.gridTemplateColumns = 'repeat(3, 1fr)';
   WPC_SLOTS.daily.forEach(o => {
     const btn = document.createElement('button');
     btn.className = 'layer-btn';
     btn.title = o.label;
-    btn.innerHTML = `<span class="lb-period" style="font-size:11px">${o.short}</span><span style="font-size:8px;display:block;margin-top:1px;color:inherit;opacity:0.7">${o.label}</span>`;
+    btn.innerHTML = `<span class="lb-period" style="font-size:11px">${o.short}</span><span style="font-size:8px;display:block;margin-top:1px;color:inherit;opacity:0.6">${o.sub}</span>`;
     btn.onclick = () => sbSelFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
     g.appendChild(btn);
   });
@@ -2266,11 +2263,12 @@ function sbSelFcast(btn, wmsUrl, layerNum, label) {
 (function buildDaily() {
   const g = document.getElementById('fs-daily-grid');
   if (!g) return;
+  g.style.gridTemplateColumns = 'repeat(3, 1fr)';
   WPC_SLOTS.daily.forEach(o => {
     const btn = document.createElement('button');
     btn.className = 'fs-lopt';
     btn.title = o.label;
-    btn.innerHTML = '<div style="font-weight:600">' + o.short + '</div><div class="fs-opt-sub" style="font-size:8px;line-height:1.3">' + o.label + '</div>';
+    btn.innerHTML = '<div style="font-weight:600">' + o.short + '</div><div class="fs-opt-sub" style="font-size:8px;line-height:1.3">' + o.sub + '</div>';
     btn.onclick = () => fsPicker_selFcast(btn, WMS_WPC, o.layerNum, o.short + ': ' + o.label);
     g.appendChild(btn);
   });
