@@ -1011,6 +1011,7 @@
       <!-- Tab toggle -->
       <div style="display:flex;gap:6px;margin-bottom:12px;">
         <button class="sidebar-mode-btn active" id="sb-tab-obs" onclick="sbSetTab('obs')">Observed</button>
+        <button class="sidebar-mode-btn" id="sb-tab-radar" onclick="sbSetTab('radar')">Radar</button>
         <button class="sidebar-mode-btn" id="sb-tab-fcast" onclick="sbSetTab('fcast')">Forecast</button>
       </div>
 
@@ -1030,6 +1031,35 @@
           <button class="layer-btn" onclick="setLayer('mrms_p72h','72hr QPE',this)">
             <span class="lb-period">72hr</span>QPE
           </button>
+        </div>
+      </div>
+
+      <!-- Radar panel -->
+      <div id="sb-radar-panel" style="display:none">
+        <div class="section-label" style="margin-bottom:8px;">KTBW Tampa Bay · Live</div>
+        <div class="layer-grid">
+          <button class="layer-btn active" id="radar-btn-ref" onclick="setRadarProduct('N0Q','Base Reflectivity',this)">
+            <span class="lb-period" style="font-size:11px">Reflect</span>dBZ
+          </button>
+          <button class="layer-btn" id="radar-btn-vel" onclick="setRadarProduct('N0U','Base Velocity',this)">
+            <span class="lb-period" style="font-size:11px">Velocity</span>kts
+          </button>
+          <button class="layer-btn" id="radar-btn-et" onclick="setRadarProduct('EET','Echo Tops',this)">
+            <span class="lb-period" style="font-size:11px">Echo</span>Tops
+          </button>
+        </div>
+        <div style="margin-top:10px;padding:8px;background:var(--panel2);border-radius:6px;border:1px solid var(--border)">
+          <div class="section-label" style="margin-bottom:6px;">Reflectivity Scale (dBZ)</div>
+          <div style="height:8px;border-radius:4px;background:linear-gradient(90deg,
+            #04e9e7 0%,#019ff4 8%,#0300f4 16%,#02fd02 25%,#01c501 33%,#008e00 41%,
+            #fdf802 50%,#e5bc00 58%,#fd9500 66%,#fd0000 75%,#d40000 83%,#bc0000 91%,#f800fd 100%
+          );margin-bottom:4px;"></div>
+          <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:8px;color:var(--text-dim)">
+            <span>5</span><span>20</span><span>35</span><span>50</span><span>65</span><span>75+</span>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-dim);margin-top:4px;opacity:0.6">
+            Updates every ~4–6 min · KTBW Tampa
+          </div>
         </div>
       </div>
 
@@ -1153,6 +1183,7 @@
     <div class="fs-picker-panel" id="fs-picker-panel">
       <div class="fs-tab-row">
         <button class="fs-tab obs-active" id="fs-tab-obs" onclick="fsPicker_setTab('obs')">⚡ Observed</button>
+        <button class="fs-tab" id="fs-tab-radar" onclick="fsPicker_setTab('radar')">📡 Radar</button>
         <button class="fs-tab" id="fs-tab-fcast" onclick="fsPicker_setTab('fcast')">Forecast</button>
       </div>
       <!-- Observed panel -->
@@ -1163,6 +1194,25 @@
           <button class="fs-lopt obs-sel" onclick="fsPicker_selObs(this,'mrms_p24h','24hr QPE')">24hr</button>
           <button class="fs-lopt" onclick="fsPicker_selObs(this,'mrms_p48h','48hr QPE')">48hr</button>
           <button class="fs-lopt" onclick="fsPicker_selObs(this,'mrms_p72h','72hr QPE')">72hr</button>
+        </div>
+      </div>
+      <!-- Radar panel -->
+      <div id="fs-radar-panel" style="display:none">
+        <div class="fs-sec-label">KTBW Tampa Bay · Live Radar</div>
+        <div class="fs-btn-grid3" style="margin-bottom:10px;">
+          <button class="fs-lopt obs-sel" id="fs-radar-ref" onclick="fsPicker_selRadar(this,'N0Q','Base Reflectivity')">
+            <div style="font-weight:600">Reflect</div><div class="fs-opt-sub">dBZ</div>
+          </button>
+          <button class="fs-lopt" id="fs-radar-vel" onclick="fsPicker_selRadar(this,'N0U','Base Velocity')">
+            <div style="font-weight:600">Velocity</div><div class="fs-opt-sub">kts</div>
+          </button>
+          <button class="fs-lopt" id="fs-radar-et" onclick="fsPicker_selRadar(this,'EET','Echo Tops')">
+            <div style="font-weight:600">Echo</div><div class="fs-opt-sub">Tops</div>
+          </button>
+        </div>
+        <div style="height:7px;border-radius:3px;background:linear-gradient(90deg,#04e9e7 0%,#019ff4 8%,#0300f4 16%,#02fd02 25%,#01c501 33%,#008e00 41%,#fdf802 50%,#e5bc00 58%,#fd9500 66%,#fd0000 75%,#d40000 83%,#f800fd 100%);margin-bottom:4px;"></div>
+        <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:8px;color:rgba(127,179,211,0.5)">
+          <span>5</span><span>20</span><span>35</span><span>50</span><span>65</span><span>75+</span>
         </div>
       </div>
       <!-- Forecast panel -->
@@ -1497,6 +1547,27 @@ async function queryRainfall(lat, lng) {
   state.lastValueIn = null;
 
   const isWpc = state.layer && state.layer.startsWith('__wpc__');
+  const isRadar = state.layer && state.layer.startsWith('__radar__');
+
+  // Radar mode — skip query, just show coords
+  if (isRadar) {
+    document.getElementById('querying-badge').classList.remove('show');
+    const val = document.getElementById('readout-val');
+    val.textContent = '📡';
+    val.className = 'readout-value no-data';
+    document.getElementById('readout-unit').textContent = 'radar · point query n/a';
+    document.getElementById('readout-coords').textContent =
+      lat.toFixed(4) + '°N  ' + Math.abs(lng).toFixed(4) + '°W';
+    document.getElementById('fs-result-querying').style.display = 'none';
+    document.getElementById('fs-result-body').style.display = 'block';
+    document.getElementById('fs-result-val').textContent = '📡';
+    document.getElementById('fs-result-sub').textContent = 'radar · query n/a';
+    document.getElementById('fs-result-coords').textContent =
+      lat.toFixed(4) + '°N  ' + Math.abs(lng).toFixed(4) + '°W';
+    const card = document.getElementById('fs-result-card');
+    if (card) card.classList.add('show');
+    return;
+  }
 
   // UI: loading state
   document.getElementById('querying-badge').classList.add('show');
@@ -1732,6 +1803,7 @@ function renderSavedRain() {
 
 // Fetch a single rainfall value for saved locations (returns inches or null)
 async function fetchRainfallValue(lat, lng) {
+  if (state.layer && state.layer.startsWith('__radar__')) return null;
   if (state.layer && state.layer.startsWith('__wpc__')) {
     return fetchWpcAtPoint(lat, lng, state.wpcLayerNum);
   }
@@ -1975,6 +2047,41 @@ document.addEventListener('click', (e) => {
 });
 
 const WMS_WPC = 'https://mapservices.weather.noaa.gov/vector/services/precip/wpc_qpf/MapServer/WMSServer';
+const WMS_RADAR_BASE = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/ridge.cgi?sector=TBW&prod=';
+
+// Switch radar product from sidebar
+function setRadarProduct(prod, label, btn) {
+  document.querySelectorAll('#sb-radar-panel .layer-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const wmsUrl = WMS_RADAR_BASE + prod;
+  state.layer = '__radar__' + prod;
+  state.layerLabel = label;
+  document.getElementById('layer-label').textContent = label;
+  const fsLbl = document.getElementById('fs-layer-badge');
+  if (fsLbl) fsLbl.textContent = label;
+  fsPicker_setLabel(label);
+  _applyWmsLayer(wmsUrl, 'single');
+}
+
+// Switch radar product from fullscreen picker
+function fsPicker_selRadar(btn, prod, label) {
+  document.querySelectorAll('#fs-radar-panel .fs-lopt').forEach(b => b.classList.remove('obs-sel'));
+  btn.classList.add('obs-sel');
+  const wmsUrl = WMS_RADAR_BASE + prod;
+  state.layer = '__radar__' + prod;
+  state.layerLabel = label;
+  fsPicker_setLabel(label);
+  _applyWmsLayer(wmsUrl, 'single');
+  // Also sync sidebar radar button
+  ['ref','vel','et'].forEach(k => {
+    const sbBtn = document.getElementById('radar-btn-'+k);
+    if (sbBtn) sbBtn.classList.remove('active');
+  });
+  const prodMap = {'N0Q':'ref','N0U':'vel','EET':'et'};
+  const sbBtn = document.getElementById('radar-btn-'+(prodMap[prod]||'ref'));
+  if (sbBtn) sbBtn.classList.add('active');
+  setTimeout(toggleFsPicker, 130);
+}
 
 // WMS 6hr IDs confirmed from GetCapabilities: 13=00-06hr, 12=06-12hr, ... 1=72-78hr (reversed)
 // Slots go forward in time so: slot0(00-06hr)=13, slot1(06-12hr)=12, slot2(12-18hr)=11, etc.
@@ -2109,8 +2216,10 @@ function fsPicker_setLabel(text) {
 function fsPicker_setTab(tab) {
   fsActiveTab = tab;
   document.getElementById('fs-obs-panel').style.display   = tab==='obs'   ? '' : 'none';
+  document.getElementById('fs-radar-panel').style.display = tab==='radar' ? '' : 'none';
   document.getElementById('fs-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
   document.getElementById('fs-tab-obs').className   = 'fs-tab' + (tab==='obs'   ? ' obs-active'   : '');
+  document.getElementById('fs-tab-radar').className = 'fs-tab' + (tab==='radar' ? ' obs-active'   : '');
   document.getElementById('fs-tab-fcast').className = 'fs-tab' + (tab==='fcast' ? ' fcast-active' : '');
 }
 
@@ -2175,11 +2284,11 @@ function _applyWmsLayer(wmsUrl, layerName) {
 
 function sbSetTab(tab) {
   document.getElementById('sb-obs-panel').style.display   = tab==='obs'   ? '' : 'none';
+  document.getElementById('sb-radar-panel').style.display = tab==='radar' ? '' : 'none';
   document.getElementById('sb-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
   document.getElementById('sb-tab-obs').classList.toggle('active',   tab==='obs');
+  document.getElementById('sb-tab-radar').classList.toggle('active', tab==='radar');
   document.getElementById('sb-tab-fcast').classList.toggle('active', tab==='fcast');
-  // Update header label
-  document.getElementById('utc-clock'); // no-op, just ensure DOM ready
 }
 
 function sbSetFM(mode) {
