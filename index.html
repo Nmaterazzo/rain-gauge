@@ -2026,17 +2026,26 @@ function buildWpcSlots() {
     const end   = wpcWindowStart(day1, off + 6);
     const past  = end <= nowUTC;
     return { start, end, past, layerNum: WPC_6HR_LAYERS[i], dayGroup: Math.floor(i/4),
-      label: fmtET(start),           // short: "Fri 2pm"
-      fullLabel: fmtETRange(start, end), // tooltip: "Fri 2pm – Fri 8pm"
+      label: fmtET(end),             // label by END time — "Sat 2am" not "Fri 8pm"
+      fullLabel: fmtETRange(start, end),
     };
   });
 
-  // Group by day
-  const slotsByDay = [
-    { slots: allSlots.slice(0,4),   dayLabel: fmtET(wpcWindowStart(day1, 0)).split(' ')[0] },
-    { slots: allSlots.slice(4,8), dayLabel: fmtET(wpcWindowStart(day1, 24)).split(' ')[0] },
-    { slots: allSlots.slice(8),   dayLabel: fmtET(wpcWindowStart(day1, 48)).split(' ')[0] },
-  ];
+  // Group by the END time's day — so "Fri 8pm–Sat 2am" appears under Saturday
+  const getDay = (utcDate) => {
+    const et = new Date(utcDate.toLocaleString('en-US', {timeZone:'America/New_York'}));
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][et.getDay()];
+  };
+
+  // Build day groups dynamically based on end-time day
+  const dayMap = {};
+  const dayOrder = [];
+  allSlots.forEach(slot => {
+    const d = getDay(slot.end);
+    if (!dayMap[d]) { dayMap[d] = []; dayOrder.push(d); }
+    dayMap[d].push(slot);
+  });
+  const slotsByDay = dayOrder.map(d => ({ slots: dayMap[d], dayLabel: d }));
 
   // Daily: Day1=0-24hr, Day2=24-48hr, Day3=48-72hr, D4-5=72-120hr (48hr block), D6-7=120-168hr (48hr block)
   // Note: WPC has no standalone Day 4. After Day 3 it jumps to 48hr blocks.
