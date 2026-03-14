@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -32,978 +33,956 @@
     --rain-extreme: #ef4444;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: 'Outfit', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* HEADER */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    height: 52px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    z-index: 1000;
-    position: relative;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .logo-icon { width: 28px; height: 28px; }
-  .logo-icon svg { width: 100%; height: 100%; }
-
-  .logo-text {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--text-bright);
-    letter-spacing: -0.02em;
-  }
-  .logo-text span { color: var(--accent); }
-
-  .header-center {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-    letter-spacing: 0.08em;
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .live-badge {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--accent2);
-    letter-spacing: 0.1em;
-  }
-
-  .live-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--accent2);
-    animation: pulse 2s infinite;
-  }
-
-  .utc-clock {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--text-dim);
-    letter-spacing: 0.06em;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(0.8); }
-  }
-
-  /* MAIN LAYOUT */
-  .main { display: flex; flex: 1; overflow: hidden; }
-
-  /* SIDEBAR */
-  .sidebar {
-    width: 285px;
-    flex-shrink: 0;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* ── MOBILE LAYOUT ── */
-  @media (max-width: 700px) {
-    body { overflow-y: auto; overflow-x: hidden; }
-
-    .main {
-      flex-direction: column;
-      overflow: visible;
-      height: auto;
-    }
-
-    .sidebar {
-      width: 100%;
-      height: auto;
-      overflow: visible;
-      border-right: none;
-      border-bottom: 1px solid var(--border);
-    }
-
-    /* Map hidden by default on mobile — shown as inline preview */
-    #map { display: none; }
-
-    /* Map preview section injected below saved locations */
-    .map-preview-section {
-      padding: 0 12px 12px;
-    }
-    .map-preview-label {
-      font-family: 'DM Mono', monospace;
-      font-size: 9px;
-      letter-spacing: 0.15em;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      margin-bottom: 8px;
-      padding: 14px 0 0;
-      border-top: 1px solid var(--border);
-    }
-    .map-preview-wrap {
-      position: relative;
-      height: 220px;
-      border-radius: 8px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-      cursor: pointer;
-    }
-    #map-preview { width: 100%; height: 100%; }
-    .map-preview-tap {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,0.22);
-      z-index: 500;
-      pointer-events: none;
-    }
-    .map-preview-tap span {
-      background: rgba(0,0,0,0.65);
-      color: var(--accent);
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      padding: 6px 14px;
-      border-radius: 20px;
-      border: 1px solid var(--accent);
-      font-family: 'DM Mono', monospace;
-    }
-
-    /* Fullscreen map overlay */
-    .map-fullscreen {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      background: #000;
-    }
-    .map-fullscreen.open { display: block; }
-    #map-fullscreen-inner { width: 100%; height: 100%; }
-    .map-fs-close {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      z-index: 10000;
-      background: rgba(0,0,0,0.75);
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      font-size: 13px;
-      padding: 8px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-family: 'DM Mono', monospace;
-      letter-spacing: 0.1em;
-    }
-
-    /* Hide desktop map overlays on mobile */
-    .map-top-bar, .querying-badge, .map-legend { display: none !important; }
-
-    /* Layer badge bottom-left of fullscreen */
-    .fs-layer-badge {
-      position: absolute;
-      bottom: 18px; left: 12px;
-      z-index: 10000;
-      background: rgba(8,14,20,0.85);
-      border: 1px solid var(--border);
-      color: var(--accent);
-      font-family: 'DM Mono', monospace;
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      padding: 5px 10px;
-      border-radius: 5px;
-      pointer-events: none;
-    }
-
-    /* Floating result card — bottom center, slides up on show */
-    .fs-result-card {
-      position: absolute;
-      bottom: -160px;
-      left: 50%; transform: translateX(-50%);
-      width: calc(100% - 32px);
-      max-width: 340px;
-      z-index: 10002;
-      background: rgba(8,14,20,0.96);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px 16px 12px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      transition: bottom 0.3s cubic-bezier(0.34,1.56,0.64,1);
-      backdrop-filter: blur(12px);
-      pointer-events: none;
-    }
-    .fs-result-card.show { bottom: 22px; pointer-events: auto; }
-    .fs-result-querying {
-      display: flex; align-items: center; gap: 8px;
-      color: var(--text-dim); font-size: 12px;
-      font-family: 'DM Mono', monospace;
-    }
-    .fs-spin {
-      width: 14px; height: 14px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .fs-result-body { flex: 1; min-width: 0; }
-    .fs-result-val {
-      font-family: 'DM Mono', monospace;
-      font-size: 26px; font-weight: 700;
-      color: var(--accent); line-height: 1;
-      margin-bottom: 3px;
-    }
-    .fs-result-sub {
-      font-size: 11px; color: var(--text-dim);
-      font-family: 'DM Mono', monospace;
-      letter-spacing: 0.05em;
-    }
-    .fs-result-coords {
-      font-size: 10px; color: var(--border);
-      font-family: 'DM Mono', monospace;
-      margin-top: 4px;
-    }
-    .fs-result-dismiss {
-      background: none; border: none;
-      color: var(--text-dim); font-size: 16px;
-      cursor: pointer; padding: 4px 6px;
-      flex-shrink: 0; align-self: flex-start;
-    }
-
-    /* Fullscreen layer picker pill */
-    .fs-picker-wrap {
-      position: absolute;
-      top: 16px; left: 16px;
-      z-index: 10001;
-      width: 270px;
-    }
-    .fs-pill {
-      display: flex; align-items: center; justify-content: space-between;
-      width: 100%; background: rgba(8,14,20,0.92);
-      border: 1px solid rgba(79,195,247,0.4);
-      color: #a0c8e0; padding: 9px 14px; border-radius: 8px;
-      font-size: 11px; letter-spacing: 0.1em; cursor: pointer;
-      font-family: 'DM Mono', monospace; backdrop-filter: blur(12px);
-    }
-    .fs-pill.open { background: rgba(0,212,255,0.12); border-color: #00d4ff; border-radius: 8px 8px 0 0; }
-    .fs-pill-label { color: #fff; font-weight: 600; }
-    .fs-pill-arrow { font-size: 9px; transition: transform 0.2s; display: inline-block; }
-    .fs-pill-arrow.flipped { transform: rotate(180deg); }
-    .fs-picker-panel {
-      display: none;
-      background: rgba(8,14,20,0.97);
-      border: 1px solid rgba(79,195,247,0.35);
-      border-top: none; border-radius: 0 0 10px 10px;
-      padding: 12px; backdrop-filter: blur(16px);
-      max-height: 70vh; overflow-y: auto;
-    }
-    .fs-picker-panel.open { display: block; }
-    .fs-tab-row { display: flex; gap: 6px; margin-bottom: 12px; }
-    .fs-tab {
-      flex: 1; padding: 6px 0; border-radius: 6px; font-size: 10px;
-      letter-spacing: 0.1em; cursor: pointer;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(79,195,247,0.15);
-      color: rgba(160,200,224,0.55);
-      font-family: 'DM Mono', monospace;
-    }
-    .fs-tab.obs-active { background: rgba(0,212,255,0.15); border-color: #00d4ff; color: #00d4ff; }
-    .fs-tab.fcast-active { background: rgba(0,255,157,0.1); border-color: #00ff9d; color: #00ff9d; }
-    .fs-sec-label {
-      font-size: 9px; color: rgba(127,179,211,0.5);
-      letter-spacing: 0.15em; margin-bottom: 7px; text-transform: uppercase;
-    }
-    .fs-btn-grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; }
-    .fs-btn-grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
-    .fs-lopt {
-      padding: 7px 4px; border-radius: 6px; font-size: 11px; cursor: pointer;
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(79,195,247,0.12);
-      color: rgba(160,200,224,0.7); font-family: 'DM Mono', monospace; text-align: center;
-    }
-    .fs-lopt.obs-sel { background: rgba(0,212,255,0.2); border-color: #00d4ff; color: #00d4ff; }
-    .fs-lopt.fcast-sel { background: rgba(0,255,157,0.15); border-color: #00ff9d; color: #00ff9d; }
-    .fs-lopt.past { background: rgba(255,255,255,0.02); border-color: rgba(79,195,247,0.06); color: rgba(127,179,211,0.2); text-decoration: line-through; cursor: default; }
-    .fs-fm-row { display: flex; gap: 5px; margin-bottom: 10px; }
-    .fs-fm-btn {
-      flex: 1; padding: 5px 0; border-radius: 5px; font-size: 9px;
-      letter-spacing: 0.08em; cursor: pointer;
-      background: rgba(255,255,255,0.04); border: 1px solid rgba(79,195,247,0.12);
-      color: rgba(160,200,224,0.5); font-family: 'DM Mono', monospace;
-    }
-    .fs-fm-btn.fm-active { background: rgba(0,255,157,0.12); border-color: #00ff9d; color: #00ff9d; }
-    .fs-day-label { font-size: 9px; color: rgba(127,179,211,0.45); letter-spacing: 0.1em; margin: 6px 0 3px; text-transform: uppercase; }
-    .fs-opt-sub { font-size: 8px; color: rgba(127,179,211,0.4); margin-top: 2px; }
-
-    /* App fills viewport vertically */
-    html, body { height: auto; }
-
-    /* Radar loop controls */
-    .radar-controls {
-      display: none;
-      position: absolute;
-      bottom: 22px; left: 50%; transform: translateX(-50%);
-      width: calc(100% - 24px); max-width: 380px;
-      z-index: 10001;
-      background: rgba(8,14,20,0.93);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 14px 8px;
-      backdrop-filter: blur(12px);
-    }
-    .radar-controls.visible { display: block; }
-    .radar-loop-top { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
-    .radar-play-btn {
-      background: rgba(0,212,255,0.12); border: 1px solid var(--accent);
-      color: var(--accent); width:30px; height:30px; border-radius:50%;
-      font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-      flex-shrink:0; font-family:'DM Mono',monospace;
-    }
-    .radar-timestamp { font-family:'DM Mono',monospace; font-size:11px; color:var(--accent); flex:1; text-align:center; letter-spacing:0.06em; }
-    .radar-frame-count { font-family:'DM Mono',monospace; font-size:9px; color:var(--text-dim); flex-shrink:0; }
-    .radar-slider { width:100%; accent-color:var(--accent); cursor:pointer; height:3px; }
-    .radar-loading { font-family:'DM Mono',monospace; font-size:9px; color:var(--text-dim); text-align:center; margin-top:3px; letter-spacing:0.08em; }
-  }
-
-  /* Desktop: hide mobile-only elements */
-  @media (min-width: 701px) {
-    .map-preview-section, .map-fullscreen { display: none !important; }
-  }
-
-  .panel-section {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .section-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 0.15em;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-
-  /* SIDEBAR MODE TABS */
-  .sidebar-mode-btn {
-    flex: 1;
-    padding: 6px 0;
-    background: var(--panel2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-dim);
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-transform: uppercase;
-  }
-  .sidebar-mode-btn.active {
-    background: rgba(0,212,255,0.12);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* FORECAST MODE BUTTONS (6hr/daily/multi) */
-  .forecast-mode-btn {
-    flex: 1;
-    padding: 5px 0;
-    background: var(--panel2);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    color: var(--text-dim);
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .forecast-mode-btn.active {
-    background: rgba(0,255,157,0.1);
-    border-color: var(--accent2);
-    color: var(--accent2);
-  }
-
-  .sb-day-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    color: var(--text-dim);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin: 6px 0 3px;
-  }
-
-  /* LAYER SELECTOR */
-  .layer-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
-
-  .layer-btn {
-    padding: 8px 6px;
-    background: var(--panel2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-dim);
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.15s;
-    letter-spacing: 0.03em;
-  }
-
-  .layer-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .layer-btn.active {
-    background: rgba(0, 212, 255, 0.1);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  .layer-btn .lb-period {
-    display: block;
-    font-size: 14px;
-    font-weight: 700;
-    font-family: 'Outfit', sans-serif;
-    color: inherit;
-    margin-bottom: 2px;
-  }
-
-  /* DATA READOUT */
-  .readout-card {
-    background: var(--panel2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .readout-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 3px; height: 100%;
-    background: var(--accent);
-    border-radius: 2px 0 0 2px;
-    transition: background 0.3s;
-  }
-
-  .readout-card.error-state::before { background: var(--warn); }
-
-  .readout-value {
-    font-size: 36px;
-    font-weight: 800;
-    color: var(--text-bright);
-    line-height: 1;
-    letter-spacing: -0.03em;
-    transition: color 0.2s;
-  }
-
-  .readout-value.no-data { font-size: 18px; color: var(--text-dim); font-weight: 400; }
-  .readout-value.error { font-size: 14px; color: var(--warn); font-weight: 400; }
-
-  .readout-unit {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--accent);
-    margin-top: 4px;
-  }
-
-  .readout-coords {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--text-dim);
-    margin-top: 6px;
-  }
-
-  .readout-timestamp {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    color: var(--text-dim);
-    margin-top: 3px;
-    opacity: 0.7;
-  }
-
-  /* RAIN BAR */
-  .rain-bar-wrap { margin-top: 10px; }
-
-  .rain-bar {
-    height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .rain-bar-fill {
-    height: 100%;
-    border-radius: 3px;
-    background: linear-gradient(90deg, var(--rain-low), var(--rain-mid), var(--rain-high));
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 0%;
-  }
-
-  .rain-bar-labels {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 4px;
-    font-family: 'DM Mono', monospace;
-    font-size: 8px;
-    color: var(--text-dim);
-  }
-
-  /* INTENSITY */
-  .intensity-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  .intensity-dots { display: flex; gap: 3px; }
-
-  .intensity-dot {
-    width: 8px; height: 8px;
-    border-radius: 2px;
-    background: var(--border);
-    transition: background 0.3s;
-  }
-
-  .intensity-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    color: var(--text-dim);
-    letter-spacing: 0.05em;
-  }
-
-  /* UNIT TOGGLE */
-  .unit-toggle {
-    display: flex;
-    gap: 4px;
-    margin-top: 8px;
-  }
-
-  .unit-btn {
-    flex: 1;
-    padding: 4px;
-    background: var(--panel2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    color: var(--text-dim);
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    cursor: pointer;
-    text-align: center;
-    transition: all 0.12s;
-    letter-spacing: 0.05em;
-  }
-
-  .unit-btn.active {
-    background: rgba(0,212,255,0.1);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* SAVED LOCATIONS */
-  .saved-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px 12px;
-  }
-
-  .saved-list::-webkit-scrollbar { width: 3px; }
-  .saved-list::-webkit-scrollbar-track { background: transparent; }
-  .saved-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  .saved-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 9px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.12s;
-    margin-bottom: 4px;
-  }
-
-  .saved-item:hover { background: var(--panel2); border-color: var(--border); }
-  .saved-item.active {
-    background: rgba(0,212,255,0.07);
-    border-color: rgba(0,212,255,0.3);
-  }
-
-  .saved-item-left { display: flex; align-items: center; gap: 8px; }
-
-  .saved-pin {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .saved-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-bright);
-    line-height: 1.2;
-  }
-
-  .saved-sub {
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    color: var(--text-dim);
-    margin-top: 1px;
-  }
-
-  .saved-rain {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--accent);
-    font-weight: 500;
-    min-width: 36px;
-    text-align: right;
-  }
-
-  .saved-rain.loading { color: var(--text-dim); }
-  .saved-rain.error-val { color: var(--warn); font-size: 9px; }
-
-  .add-location-btn {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    padding: 8px;
-    background: transparent;
-    border: 1px dashed var(--border);
-    border-radius: 6px;
-    color: var(--text-dim);
-    font-family: 'Outfit', sans-serif;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.15s;
-    margin-top: 6px;
-  }
-
-  .add-location-btn:hover { border-color: var(--accent2); color: var(--accent2); }
-
-  /* MAP */
-  #map { flex: 1; position: relative; }
-
-  /* MAP OVERLAYS */
-  .map-overlay {
-    position: absolute;
-    z-index: 500;
-    pointer-events: none;
-  }
-
-  .map-top-bar {
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(8,14,20,0.88);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 16px;
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--text-dim);
-    white-space: nowrap;
-    letter-spacing: 0.06em;
-  }
-
-  .map-top-bar span { color: var(--accent); }
-
-  .map-legend {
-    bottom: 28px;
-    right: 12px;
-    background: rgba(8,14,20,0.9);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
-    pointer-events: auto;
-  }
-
-  .legend-title {
-    font-family: 'DM Mono', monospace;
-    font-size: 8px;
-    color: var(--text-dim);
-    letter-spacing: 0.12em;
-    margin-bottom: 7px;
-    text-transform: uppercase;
-  }
-
-  .legend-bar {
-    width: 160px; height: 8px;
-    border-radius: 4px;
-    background: linear-gradient(90deg,
-      #3b82f6 0%, #06b6d4 25%, #00ff9d 50%, #f59e0b 75%, #ef4444 100%
-    );
-    margin-bottom: 4px;
-  }
-
-  .legend-labels {
-    display: flex;
-    justify-content: space-between;
-    font-family: 'DM Mono', monospace;
-    font-size: 8px;
-    color: var(--text-dim);
-  }
-
-  /* QUERYING BADGE */
-  .querying-badge {
-    position: absolute;
-    top: 12px; right: 12px;
-    z-index: 500;
-    background: rgba(8,14,20,0.9);
-    border: 1px solid var(--accent);
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--accent);
-    display: none;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .querying-badge.show { display: flex; }
-
-  .spin {
-    width: 10px; height: 10px;
-    border: 1.5px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* CLICK PULSE */
-  @keyframes clickPulse {
-    0% { transform: translate(-50%,-50%) scale(0); opacity: 1; }
-    100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }
-  }
-
-  .click-pulse {
-    position: absolute;
-    width: 20px; height: 20px;
-    border: 2px solid var(--accent);
-    border-radius: 50%;
-    pointer-events: none;
-    animation: clickPulse 0.6s ease-out forwards;
-    z-index: 600;
-  }
-
-  /* TOAST */
-  .toast {
-    position: fixed;
-    bottom: 20px; left: 50%;
-    transform: translateX(-50%) translateY(60px);
-    background: var(--panel2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 18px;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text-bright);
-    z-index: 9999;
-    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
-    white-space: nowrap;
-  }
-
-  .toast.show { transform: translateX(-50%) translateY(0); }
-  .toast.warn { border-color: var(--warn); color: var(--warn); }
-
-  /* LEAFLET OVERRIDES */
-  .leaflet-control-attribution {
-    background: rgba(8,14,20,0.75) !important;
-    color: var(--text-dim) !important;
-    font-size: 8px !important;
-  }
-
-  .leaflet-control-zoom a {
-    background: var(--panel) !important;
-    color: var(--text) !important;
-    border-color: var(--border) !important;
-  }
-
-  .leaflet-control-zoom a:hover {
-    background: var(--panel2) !important;
-    color: var(--accent) !important;
-  }
-
-  .leaflet-popup-content-wrapper {
-    background: var(--panel) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-    color: var(--text) !important;
-    font-family: 'Outfit', sans-serif !important;
-  }
-
-  .leaflet-popup-tip { background: var(--panel) !important; }
-
-  /* MODAL */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(4px);
-    z-index: 9000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s;
-  }
-
-  .modal-overlay.show { opacity: 1; pointer-events: auto; }
-
-  .modal {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    width: 300px;
-    transform: scale(0.95);
-    transition: transform 0.2s;
-  }
-
-  .modal-overlay.show .modal { transform: scale(1); }
-
-  .modal-title {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--text-bright);
-    margin-bottom: 16px;
-  }
-
-  .modal-input {
-    width: 100%;
-    padding: 10px 12px;
-    background: var(--panel2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-bright);
-    font-family: 'Outfit', sans-serif;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.15s;
-    margin-bottom: 12px;
-  }
-
-  .modal-input:focus { border-color: var(--accent); }
-
-  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
-
-  .btn {
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text);
-    transition: all 0.15s;
-  }
-
-  .btn:hover { background: var(--panel2); }
-
-  .btn-primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #000;
-  }
-
-  .btn-primary:hover { background: #00b8d9; border-color: #00b8d9; }
-
-  /* CONTEXT MENU */
-  .ctx-menu {
-    position: fixed;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px;
-    z-index: 8000;
-    min-width: 185px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    display: none;
-  }
-
-  .ctx-menu.show { display: block; }
-
-  .ctx-coords {
-    padding: 6px 12px;
-    font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    color: var(--text-dim);
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 4px;
-  }
-
-  .ctx-item {
-    padding: 8px 12px;
-    border-radius: 5px;
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: var(--text);
-    transition: background 0.1s;
-  }
-
-  .ctx-item:hover { background: var(--panel2); color: var(--accent); }
-
-  /* DATA SOURCE NOTE */
-  .data-note {
-    padding: 8px 16px;
-    font-family: 'DM Mono', monospace;
-    font-size: 8px;
-    color: var(--text-dim);
-    letter-spacing: 0.04em;
-    border-top: 1px solid var(--border);
-    line-height: 1.5;
-  }
-
-  .data-note a { color: var(--accent); text-decoration: none; }
-  .data-note a:hover { text-decoration: underline; }
+- { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+font-family: ‘Outfit’, sans-serif;
+background: var(–bg);
+color: var(–text);
+height: 100vh;
+display: flex;
+flex-direction: column;
+overflow: hidden;
+}
+
+/* HEADER */
+header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 0 20px;
+height: 52px;
+background: var(–panel);
+border-bottom: 1px solid var(–border);
+flex-shrink: 0;
+z-index: 1000;
+position: relative;
+}
+
+.logo {
+display: flex;
+align-items: center;
+gap: 10px;
+}
+
+.logo-icon { width: 28px; height: 28px; }
+.logo-icon svg { width: 100%; height: 100%; }
+
+.logo-text {
+font-size: 16px;
+font-weight: 800;
+color: var(–text-bright);
+letter-spacing: -0.02em;
+}
+.logo-text span { color: var(–accent); }
+
+.header-center {
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+color: var(–text-dim);
+letter-spacing: 0.08em;
+}
+
+.header-right {
+display: flex;
+align-items: center;
+gap: 14px;
+}
+
+.live-badge {
+display: flex;
+align-items: center;
+gap: 5px;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–accent2);
+letter-spacing: 0.1em;
+}
+
+.live-dot {
+width: 6px; height: 6px;
+border-radius: 50%;
+background: var(–accent2);
+animation: pulse 2s infinite;
+}
+
+.utc-clock {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–text-dim);
+letter-spacing: 0.06em;
+}
+
+@keyframes pulse {
+0%, 100% { opacity: 1; transform: scale(1); }
+50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* MAIN LAYOUT */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar {
+width: 285px;
+flex-shrink: 0;
+background: var(–panel);
+border-right: 1px solid var(–border);
+display: flex;
+flex-direction: column;
+overflow: hidden;
+}
+
+/* ── MOBILE LAYOUT ── */
+@media (max-width: 700px) {
+body { overflow-y: auto; overflow-x: hidden; }
+
+```
+.main {
+  flex-direction: column;
+  overflow: visible;
+  height: auto;
+}
+
+.sidebar {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  border-right: none;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Map hidden by default on mobile — shown as inline preview */
+#map { display: none; }
+
+/* Map preview section injected below saved locations */
+.map-preview-section {
+  padding: 0 12px 12px;
+}
+.map-preview-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--border);
+}
+.map-preview-wrap {
+  position: relative;
+  height: 220px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+#map-preview { width: 100%; height: 100%; }
+.map-preview-tap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.22);
+  z-index: 500;
+  pointer-events: none;
+}
+.map-preview-tap span {
+  background: rgba(0,0,0,0.65);
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--accent);
+  font-family: 'DM Mono', monospace;
+}
+
+/* Fullscreen map overlay */
+.map-fullscreen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+}
+.map-fullscreen.open { display: block; }
+#map-fullscreen-inner { width: 100%; height: 100%; }
+.map-fs-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10000;
+  background: rgba(0,0,0,0.75);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.1em;
+}
+
+/* Hide desktop map overlays on mobile */
+.map-top-bar, .querying-badge, .map-legend { display: none !important; }
+
+/* Layer badge bottom-left of fullscreen */
+.fs-layer-badge {
+  position: absolute;
+  bottom: 18px; left: 12px;
+  z-index: 10000;
+  background: rgba(8,14,20,0.85);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 5px 10px;
+  border-radius: 5px;
+  pointer-events: none;
+}
+
+/* Floating result card — bottom center, slides up on show */
+.fs-result-card {
+  position: absolute;
+  bottom: -160px;
+  left: 50%; transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 340px;
+  z-index: 10002;
+  background: rgba(8,14,20,0.96);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: bottom 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+.fs-result-card.show { bottom: 22px; pointer-events: auto; }
+.fs-result-querying {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--text-dim); font-size: 12px;
+  font-family: 'DM Mono', monospace;
+}
+.fs-spin {
+  width: 14px; height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.fs-result-body { flex: 1; min-width: 0; }
+.fs-result-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 26px; font-weight: 700;
+  color: var(--accent); line-height: 1;
+  margin-bottom: 3px;
+}
+.fs-result-sub {
+  font-size: 11px; color: var(--text-dim);
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.05em;
+}
+.fs-result-coords {
+  font-size: 10px; color: var(--border);
+  font-family: 'DM Mono', monospace;
+  margin-top: 4px;
+}
+.fs-result-dismiss {
+  background: none; border: none;
+  color: var(--text-dim); font-size: 16px;
+  cursor: pointer; padding: 4px 6px;
+  flex-shrink: 0; align-self: flex-start;
+}
+
+/* Fullscreen layer picker pill */
+.fs-picker-wrap {
+  position: absolute;
+  top: 16px; left: 16px;
+  z-index: 10001;
+  width: 270px;
+}
+.fs-pill {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; background: rgba(8,14,20,0.92);
+  border: 1px solid rgba(79,195,247,0.4);
+  color: #a0c8e0; padding: 9px 14px; border-radius: 8px;
+  font-size: 11px; letter-spacing: 0.1em; cursor: pointer;
+  font-family: 'DM Mono', monospace; backdrop-filter: blur(12px);
+}
+.fs-pill.open { background: rgba(0,212,255,0.12); border-color: #00d4ff; border-radius: 8px 8px 0 0; }
+.fs-pill-label { color: #fff; font-weight: 600; }
+.fs-pill-arrow { font-size: 9px; transition: transform 0.2s; display: inline-block; }
+.fs-pill-arrow.flipped { transform: rotate(180deg); }
+.fs-picker-panel {
+  display: none;
+  background: rgba(8,14,20,0.97);
+  border: 1px solid rgba(79,195,247,0.35);
+  border-top: none; border-radius: 0 0 10px 10px;
+  padding: 12px; backdrop-filter: blur(16px);
+  max-height: 70vh; overflow-y: auto;
+}
+.fs-picker-panel.open { display: block; }
+.fs-tab-row { display: flex; gap: 6px; margin-bottom: 12px; }
+.fs-tab {
+  flex: 1; padding: 6px 0; border-radius: 6px; font-size: 10px;
+  letter-spacing: 0.1em; cursor: pointer;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(79,195,247,0.15);
+  color: rgba(160,200,224,0.55);
+  font-family: 'DM Mono', monospace;
+}
+.fs-tab.obs-active { background: rgba(0,212,255,0.15); border-color: #00d4ff; color: #00d4ff; }
+.fs-tab.fcast-active { background: rgba(0,255,157,0.1); border-color: #00ff9d; color: #00ff9d; }
+.fs-sec-label {
+  font-size: 9px; color: rgba(127,179,211,0.5);
+  letter-spacing: 0.15em; margin-bottom: 7px; text-transform: uppercase;
+}
+.fs-btn-grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; }
+.fs-btn-grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
+.fs-lopt {
+  padding: 7px 4px; border-radius: 6px; font-size: 11px; cursor: pointer;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(79,195,247,0.12);
+  color: rgba(160,200,224,0.7); font-family: 'DM Mono', monospace; text-align: center;
+}
+.fs-lopt.obs-sel { background: rgba(0,212,255,0.2); border-color: #00d4ff; color: #00d4ff; }
+.fs-lopt.fcast-sel { background: rgba(0,255,157,0.15); border-color: #00ff9d; color: #00ff9d; }
+.fs-lopt.past { background: rgba(255,255,255,0.02); border-color: rgba(79,195,247,0.06); color: rgba(127,179,211,0.2); text-decoration: line-through; cursor: default; }
+.fs-fm-row { display: flex; gap: 5px; margin-bottom: 10px; }
+.fs-fm-btn {
+  flex: 1; padding: 5px 0; border-radius: 5px; font-size: 9px;
+  letter-spacing: 0.08em; cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(79,195,247,0.12);
+  color: rgba(160,200,224,0.5); font-family: 'DM Mono', monospace;
+}
+.fs-fm-btn.fm-active { background: rgba(0,255,157,0.12); border-color: #00ff9d; color: #00ff9d; }
+.fs-day-label { font-size: 9px; color: rgba(127,179,211,0.45); letter-spacing: 0.1em; margin: 6px 0 3px; text-transform: uppercase; }
+.fs-opt-sub { font-size: 8px; color: rgba(127,179,211,0.4); margin-top: 2px; }
+
+/* App fills viewport vertically */
+html, body { height: auto; }
+```
+
+}
+
+/* Desktop: hide mobile-only elements */
+@media (min-width: 701px) {
+.map-preview-section, .map-fullscreen { display: none !important; }
+}
+
+.panel-section {
+padding: 14px 16px;
+border-bottom: 1px solid var(–border);
+}
+
+.section-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+letter-spacing: 0.15em;
+color: var(–text-dim);
+text-transform: uppercase;
+margin-bottom: 10px;
+}
+
+/* SIDEBAR MODE TABS */
+.sidebar-mode-btn {
+flex: 1;
+padding: 6px 0;
+background: var(–panel2);
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–text-dim);
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+letter-spacing: 0.08em;
+cursor: pointer;
+transition: all 0.15s;
+text-transform: uppercase;
+}
+.sidebar-mode-btn.active {
+background: rgba(0,212,255,0.12);
+border-color: var(–accent);
+color: var(–accent);
+}
+
+/* FORECAST MODE BUTTONS (6hr/daily/multi) */
+.forecast-mode-btn {
+flex: 1;
+padding: 5px 0;
+background: var(–panel2);
+border: 1px solid var(–border);
+border-radius: 5px;
+color: var(–text-dim);
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+letter-spacing: 0.08em;
+cursor: pointer;
+transition: all 0.15s;
+}
+.forecast-mode-btn.active {
+background: rgba(0,255,157,0.1);
+border-color: var(–accent2);
+color: var(–accent2);
+}
+
+.sb-day-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–text-dim);
+letter-spacing: 0.1em;
+text-transform: uppercase;
+margin: 6px 0 3px;
+}
+
+/* LAYER SELECTOR */
+.layer-grid {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 6px;
+}
+
+.layer-btn {
+padding: 8px 6px;
+background: var(–panel2);
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–text-dim);
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+cursor: pointer;
+text-align: center;
+transition: all 0.15s;
+letter-spacing: 0.03em;
+}
+
+.layer-btn:hover { border-color: var(–accent); color: var(–accent); }
+.layer-btn.active {
+background: rgba(0, 212, 255, 0.1);
+border-color: var(–accent);
+color: var(–accent);
+}
+
+.layer-btn .lb-period {
+display: block;
+font-size: 14px;
+font-weight: 700;
+font-family: ‘Outfit’, sans-serif;
+color: inherit;
+margin-bottom: 2px;
+}
+
+/* DATA READOUT */
+.readout-card {
+background: var(–panel2);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 14px;
+position: relative;
+overflow: hidden;
+}
+
+.readout-card::before {
+content: ‘’;
+position: absolute;
+top: 0; left: 0;
+width: 3px; height: 100%;
+background: var(–accent);
+border-radius: 2px 0 0 2px;
+transition: background 0.3s;
+}
+
+.readout-card.error-state::before { background: var(–warn); }
+
+.readout-value {
+font-size: 36px;
+font-weight: 800;
+color: var(–text-bright);
+line-height: 1;
+letter-spacing: -0.03em;
+transition: color 0.2s;
+}
+
+.readout-value.no-data { font-size: 18px; color: var(–text-dim); font-weight: 400; }
+.readout-value.error { font-size: 14px; color: var(–warn); font-weight: 400; }
+
+.readout-unit {
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+color: var(–accent);
+margin-top: 4px;
+}
+
+.readout-coords {
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–text-dim);
+margin-top: 6px;
+}
+
+.readout-timestamp {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–text-dim);
+margin-top: 3px;
+opacity: 0.7;
+}
+
+/* RAIN BAR */
+.rain-bar-wrap { margin-top: 10px; }
+
+.rain-bar {
+height: 6px;
+background: var(–border);
+border-radius: 3px;
+overflow: hidden;
+}
+
+.rain-bar-fill {
+height: 100%;
+border-radius: 3px;
+background: linear-gradient(90deg, var(–rain-low), var(–rain-mid), var(–rain-high));
+transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+width: 0%;
+}
+
+.rain-bar-labels {
+display: flex;
+justify-content: space-between;
+margin-top: 4px;
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+color: var(–text-dim);
+}
+
+/* INTENSITY */
+.intensity-row {
+display: flex;
+align-items: center;
+gap: 8px;
+margin-top: 10px;
+}
+
+.intensity-dots { display: flex; gap: 3px; }
+
+.intensity-dot {
+width: 8px; height: 8px;
+border-radius: 2px;
+background: var(–border);
+transition: background 0.3s;
+}
+
+.intensity-label {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–text-dim);
+letter-spacing: 0.05em;
+}
+
+/* UNIT TOGGLE */
+.unit-toggle {
+display: flex;
+gap: 4px;
+margin-top: 8px;
+}
+
+.unit-btn {
+flex: 1;
+padding: 4px;
+background: var(–panel2);
+border: 1px solid var(–border);
+border-radius: 4px;
+color: var(–text-dim);
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+cursor: pointer;
+text-align: center;
+transition: all 0.12s;
+letter-spacing: 0.05em;
+}
+
+.unit-btn.active {
+background: rgba(0,212,255,0.1);
+border-color: var(–accent);
+color: var(–accent);
+}
+
+/* SAVED LOCATIONS */
+.saved-list {
+flex: 1;
+overflow-y: auto;
+padding: 8px 12px;
+}
+
+.saved-list::-webkit-scrollbar { width: 3px; }
+.saved-list::-webkit-scrollbar-track { background: transparent; }
+.saved-list::-webkit-scrollbar-thumb { background: var(–border); border-radius: 2px; }
+
+.saved-item {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 9px 10px;
+border-radius: 6px;
+cursor: pointer;
+border: 1px solid transparent;
+transition: all 0.12s;
+margin-bottom: 4px;
+}
+
+.saved-item:hover { background: var(–panel2); border-color: var(–border); }
+.saved-item.active {
+background: rgba(0,212,255,0.07);
+border-color: rgba(0,212,255,0.3);
+}
+
+.saved-item-left { display: flex; align-items: center; gap: 8px; }
+
+.saved-pin {
+width: 8px; height: 8px;
+border-radius: 50%;
+flex-shrink: 0;
+}
+
+.saved-name {
+font-size: 13px;
+font-weight: 600;
+color: var(–text-bright);
+line-height: 1.2;
+}
+
+.saved-sub {
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–text-dim);
+margin-top: 1px;
+}
+
+.saved-rain {
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+color: var(–accent);
+font-weight: 500;
+min-width: 36px;
+text-align: right;
+}
+
+.saved-rain.loading { color: var(–text-dim); }
+.saved-rain.error-val { color: var(–warn); font-size: 9px; }
+
+.add-location-btn {
+display: none;
+align-items: center;
+justify-content: center;
+gap: 6px;
+width: 100%;
+padding: 8px;
+background: transparent;
+border: 1px dashed var(–border);
+border-radius: 6px;
+color: var(–text-dim);
+font-family: ‘Outfit’, sans-serif;
+font-size: 12px;
+cursor: pointer;
+transition: all 0.15s;
+margin-top: 6px;
+}
+
+.add-location-btn:hover { border-color: var(–accent2); color: var(–accent2); }
+
+/* MAP */
+#map { flex: 1; position: relative; }
+
+/* MAP OVERLAYS */
+.map-overlay {
+position: absolute;
+z-index: 500;
+pointer-events: none;
+}
+
+.map-top-bar {
+top: 12px;
+left: 50%;
+transform: translateX(-50%);
+background: rgba(8,14,20,0.88);
+backdrop-filter: blur(8px);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 8px 16px;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–text-dim);
+white-space: nowrap;
+letter-spacing: 0.06em;
+}
+
+.map-top-bar span { color: var(–accent); }
+
+.map-legend {
+bottom: 28px;
+right: 12px;
+background: rgba(8,14,20,0.9);
+backdrop-filter: blur(8px);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 10px 12px;
+pointer-events: auto;
+}
+
+.legend-title {
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+color: var(–text-dim);
+letter-spacing: 0.12em;
+margin-bottom: 7px;
+text-transform: uppercase;
+}
+
+.legend-bar {
+width: 160px; height: 8px;
+border-radius: 4px;
+background: linear-gradient(90deg,
+#3b82f6 0%, #06b6d4 25%, #00ff9d 50%, #f59e0b 75%, #ef4444 100%
+);
+margin-bottom: 4px;
+}
+
+.legend-labels {
+display: flex;
+justify-content: space-between;
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+color: var(–text-dim);
+}
+
+/* QUERYING BADGE */
+.querying-badge {
+position: absolute;
+top: 12px; right: 12px;
+z-index: 500;
+background: rgba(8,14,20,0.9);
+border: 1px solid var(–accent);
+border-radius: 6px;
+padding: 6px 12px;
+font-family: ‘DM Mono’, monospace;
+font-size: 10px;
+color: var(–accent);
+display: none;
+align-items: center;
+gap: 6px;
+}
+
+.querying-badge.show { display: flex; }
+
+.spin {
+width: 10px; height: 10px;
+border: 1.5px solid var(–border);
+border-top-color: var(–accent);
+border-radius: 50%;
+animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* CLICK PULSE */
+@keyframes clickPulse {
+0% { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+100% { transform: translate(-50%,-50%) scale(3); opacity: 0; }
+}
+
+.click-pulse {
+position: absolute;
+width: 20px; height: 20px;
+border: 2px solid var(–accent);
+border-radius: 50%;
+pointer-events: none;
+animation: clickPulse 0.6s ease-out forwards;
+z-index: 600;
+}
+
+/* TOAST */
+.toast {
+position: fixed;
+bottom: 20px; left: 50%;
+transform: translateX(-50%) translateY(60px);
+background: var(–panel2);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 10px 18px;
+font-family: ‘DM Mono’, monospace;
+font-size: 11px;
+color: var(–text-bright);
+z-index: 9999;
+transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+white-space: nowrap;
+}
+
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.warn { border-color: var(–warn); color: var(–warn); }
+
+/* LEAFLET OVERRIDES */
+.leaflet-control-attribution {
+background: rgba(8,14,20,0.75) !important;
+color: var(–text-dim) !important;
+font-size: 8px !important;
+}
+
+.leaflet-control-zoom a {
+background: var(–panel) !important;
+color: var(–text) !important;
+border-color: var(–border) !important;
+}
+
+.leaflet-control-zoom a:hover {
+background: var(–panel2) !important;
+color: var(–accent) !important;
+}
+
+.leaflet-popup-content-wrapper {
+background: var(–panel) !important;
+border: 1px solid var(–border) !important;
+border-radius: 8px !important;
+box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+color: var(–text) !important;
+font-family: ‘Outfit’, sans-serif !important;
+}
+
+.leaflet-popup-tip { background: var(–panel) !important; }
+
+/* MODAL */
+.modal-overlay {
+position: fixed; inset: 0;
+background: rgba(0,0,0,0.7);
+backdrop-filter: blur(4px);
+z-index: 9000;
+display: flex;
+align-items: center;
+justify-content: center;
+opacity: 0;
+pointer-events: none;
+transition: opacity 0.2s;
+}
+
+.modal-overlay.show { opacity: 1; pointer-events: auto; }
+
+.modal {
+background: var(–panel);
+border: 1px solid var(–border);
+border-radius: 12px;
+padding: 24px;
+width: 300px;
+transform: scale(0.95);
+transition: transform 0.2s;
+}
+
+.modal-overlay.show .modal { transform: scale(1); }
+
+.modal-title {
+font-size: 16px;
+font-weight: 800;
+color: var(–text-bright);
+margin-bottom: 16px;
+}
+
+.modal-input {
+width: 100%;
+padding: 10px 12px;
+background: var(–panel2);
+border: 1px solid var(–border);
+border-radius: 6px;
+color: var(–text-bright);
+font-family: ‘Outfit’, sans-serif;
+font-size: 14px;
+outline: none;
+transition: border-color 0.15s;
+margin-bottom: 12px;
+}
+
+.modal-input:focus { border-color: var(–accent); }
+
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+.btn {
+padding: 8px 16px;
+border-radius: 6px;
+font-family: ‘Outfit’, sans-serif;
+font-size: 13px;
+font-weight: 600;
+cursor: pointer;
+border: 1px solid var(–border);
+background: transparent;
+color: var(–text);
+transition: all 0.15s;
+}
+
+.btn:hover { background: var(–panel2); }
+
+.btn-primary {
+background: var(–accent);
+border-color: var(–accent);
+color: #000;
+}
+
+.btn-primary:hover { background: #00b8d9; border-color: #00b8d9; }
+
+/* CONTEXT MENU */
+.ctx-menu {
+position: fixed;
+background: var(–panel);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 6px;
+z-index: 8000;
+min-width: 185px;
+box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+display: none;
+}
+
+.ctx-menu.show { display: block; }
+
+.ctx-coords {
+padding: 6px 12px;
+font-family: ‘DM Mono’, monospace;
+font-size: 9px;
+color: var(–text-dim);
+border-bottom: 1px solid var(–border);
+margin-bottom: 4px;
+}
+
+.ctx-item {
+padding: 8px 12px;
+border-radius: 5px;
+font-size: 13px;
+cursor: pointer;
+display: flex;
+align-items: center;
+gap: 8px;
+color: var(–text);
+transition: background 0.1s;
+}
+
+.ctx-item:hover { background: var(–panel2); color: var(–accent); }
+
+/* DATA SOURCE NOTE */
+.data-note {
+padding: 8px 16px;
+font-family: ‘DM Mono’, monospace;
+font-size: 8px;
+color: var(–text-dim);
+letter-spacing: 0.04em;
+border-top: 1px solid var(–border);
+line-height: 1.5;
+}
+
+.data-note a { color: var(–accent); text-decoration: none; }
+.data-note a:hover { text-decoration: underline; }
 </style>
+
 </head>
 <body>
 
@@ -1032,150 +1011,123 @@
 <div class="main">
   <div class="sidebar">
 
-    <!-- LAYER SELECT -->
-    <div class="panel-section" id="layer-section">
-      <!-- Tab toggle -->
-      <div style="display:flex;gap:6px;margin-bottom:12px;">
-        <button class="sidebar-mode-btn active" id="sb-tab-obs" onclick="sbSetTab('obs')">Observed</button>
-        <button class="sidebar-mode-btn" id="sb-tab-radar" onclick="sbSetTab('radar')">Radar</button>
-        <button class="sidebar-mode-btn" id="sb-tab-fcast" onclick="sbSetTab('fcast')">Forecast</button>
-      </div>
+```
+<!-- LAYER SELECT -->
+<div class="panel-section" id="layer-section">
+  <!-- Tab toggle -->
+  <div style="display:flex;gap:6px;margin-bottom:12px;">
+    <button class="sidebar-mode-btn active" id="sb-tab-obs" onclick="sbSetTab('obs')">Observed</button>
+    <button class="sidebar-mode-btn" id="sb-tab-fcast" onclick="sbSetTab('fcast')">Forecast</button>
+  </div>
 
-      <!-- Observed panel -->
-      <div id="sb-obs-panel">
-        <div class="section-label">Accumulation Period</div>
-        <div class="layer-grid">
-          <button class="layer-btn" onclick="setLayer('mrms_p1h','1hr QPE',this)">
-            <span class="lb-period">1hr</span>QPE
-          </button>
-          <button class="layer-btn active" onclick="setLayer('mrms_p24h','24hr QPE',this)">
-            <span class="lb-period">24hr</span>QPE
-          </button>
-          <button class="layer-btn" onclick="setLayer('mrms_p48h','48hr QPE',this)">
-            <span class="lb-period">48hr</span>QPE
-          </button>
-          <button class="layer-btn" onclick="setLayer('mrms_p72h','72hr QPE',this)">
-            <span class="lb-period">72hr</span>QPE
-          </button>
-        </div>
-      </div>
-
-      <!-- Radar panel -->
-      <div id="sb-radar-panel" style="display:none">
-        <div class="section-label" style="margin-bottom:8px;">KTBW Tampa Bay · Live</div>
-        <div class="layer-grid">
-          <button class="layer-btn active" id="radar-btn-ref" onclick="setRadarProduct('N0Q','Base Reflectivity',this)">
-            <span class="lb-period" style="font-size:11px">Reflect</span>dBZ
-          </button>
-          <button class="layer-btn" id="radar-btn-vel" onclick="setRadarProduct('N0U','Base Velocity',this)">
-            <span class="lb-period" style="font-size:11px">Velocity</span>kts
-          </button>
-          <button class="layer-btn" id="radar-btn-et" onclick="setRadarProduct('EET','Echo Tops',this)">
-            <span class="lb-period" style="font-size:11px">Echo</span>Tops
-          </button>
-        </div>
-        <div style="margin-top:10px;padding:8px;background:var(--panel2);border-radius:6px;border:1px solid var(--border)">
-          <div class="section-label" style="margin-bottom:6px;">Reflectivity Scale (dBZ)</div>
-          <div style="height:8px;border-radius:4px;background:linear-gradient(90deg,
-            #04e9e7 0%,#019ff4 8%,#0300f4 16%,#02fd02 25%,#01c501 33%,#008e00 41%,
-            #fdf802 50%,#e5bc00 58%,#fd9500 66%,#fd0000 75%,#d40000 83%,#bc0000 91%,#f800fd 100%
-          );margin-bottom:4px;"></div>
-          <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:8px;color:var(--text-dim)">
-            <span>5</span><span>20</span><span>35</span><span>50</span><span>65</span><span>75+</span>
-          </div>
-          <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-dim);margin-top:4px;opacity:0.6">
-            Updates every ~4–6 min · KTBW Tampa
-          </div>
-        </div>
-      </div>
-
-      <!-- Forecast panel -->
-      <div id="sb-fcast-panel" style="display:none">
-        <div class="section-label" style="margin-bottom:8px;">WPC QPF Forecast</div>
-        <!-- Forecast mode tabs -->
-        <div style="display:flex;gap:5px;margin-bottom:10px;">
-          <button class="forecast-mode-btn active" id="sb-fm-6hr" onclick="sbSetFM('6hr')">6-Hour</button>
-          <button class="forecast-mode-btn" id="sb-fm-daily" onclick="sbSetFM('daily')">Daily</button>
-          <button class="forecast-mode-btn" id="sb-fm-multi" onclick="sbSetFM('multi')">Multi-Day</button>
-        </div>
-        <!-- 6-hour slots -->
-        <div id="sb-mode-6hr">
-          <div id="sb-sixhr-grid"></div>
-        </div>
-        <!-- Daily -->
-        <div id="sb-mode-daily" style="display:none">
-          <div class="layer-grid" id="sb-daily-grid"></div>
-        </div>
-        <!-- Multi-day -->
-        <div id="sb-mode-multi" style="display:none">
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;" id="sb-multi-grid"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- DATA READOUT -->
-    <div class="panel-section">
-      <div class="section-label">Selected Point</div>
-      <div class="readout-card" id="readout-card">
-        <div class="readout-value no-data" id="readout-val">Click map</div>
-        <div class="readout-unit" id="readout-unit">— select a point to query</div>
-        <div class="readout-coords" id="readout-coords"></div>
-        <div class="readout-timestamp" id="readout-ts"></div>
-        <div class="rain-bar-wrap" id="rain-bar-wrap" style="display:none">
-          <div class="rain-bar">
-            <div class="rain-bar-fill" id="rain-bar-fill"></div>
-          </div>
-          <div class="rain-bar-labels" id="rain-bar-labels">
-            <span>0"</span><span>1"</span><span>3"</span><span>6"+</span>
-          </div>
-        </div>
-        <div class="intensity-row" id="intensity-row" style="display:none">
-          <div class="intensity-dots" id="intensity-dots">
-            <div class="intensity-dot"></div>
-            <div class="intensity-dot"></div>
-            <div class="intensity-dot"></div>
-            <div class="intensity-dot"></div>
-            <div class="intensity-dot"></div>
-          </div>
-          <div class="intensity-label" id="intensity-label">TRACE</div>
-        </div>
-        <div class="unit-toggle" id="unit-toggle" style="display:none">
-          <button class="unit-btn active" id="btn-in" onclick="setUnit('in')">inches</button>
-          <button class="unit-btn" id="btn-mm" onclick="setUnit('mm')">mm</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- SAVED LOCATIONS -->
-    <div class="panel-section" style="border-bottom:none;padding-bottom:8px;">
-      <div class="section-label">Saved Locations</div>
-    </div>
-    <div class="saved-list" id="saved-list"></div>
-    <div style="padding:0 12px 10px;">
-      <button class="add-location-btn" id="add-loc-btn" onclick="promptSaveLocation()">
-        + Save current point
+  <!-- Observed panel -->
+  <div id="sb-obs-panel">
+    <div class="section-label">Accumulation Period</div>
+    <div class="layer-grid">
+      <button class="layer-btn" onclick="setLayer('mrms_p1h','1hr QPE',this)">
+        <span class="lb-period">1hr</span>QPE
+      </button>
+      <button class="layer-btn active" onclick="setLayer('mrms_p24h','24hr QPE',this)">
+        <span class="lb-period">24hr</span>QPE
+      </button>
+      <button class="layer-btn" onclick="setLayer('mrms_p48h','48hr QPE',this)">
+        <span class="lb-period">48hr</span>QPE
+      </button>
+      <button class="layer-btn" onclick="setLayer('mrms_p72h','72hr QPE',this)">
+        <span class="lb-period">72hr</span>QPE
       </button>
     </div>
+  </div>
 
-    <!-- MOBILE MAP PREVIEW -->
-    <div class="map-preview-section">
-      <div class="map-preview-label">Map</div>
-      <div class="map-preview-wrap" id="map-preview-wrap" onclick="openFullscreenMap()">
-        <div id="map-preview"></div>
-        <div class="map-preview-tap"><span>⛶ TAP FOR FULL MAP</span></div>
+  <!-- Forecast panel -->
+  <div id="sb-fcast-panel" style="display:none">
+    <div class="section-label" style="margin-bottom:8px;">WPC QPF Forecast</div>
+    <!-- Forecast mode tabs -->
+    <div style="display:flex;gap:5px;margin-bottom:10px;">
+      <button class="forecast-mode-btn active" id="sb-fm-6hr" onclick="sbSetFM('6hr')">6-Hour</button>
+      <button class="forecast-mode-btn" id="sb-fm-daily" onclick="sbSetFM('daily')">Daily</button>
+      <button class="forecast-mode-btn" id="sb-fm-multi" onclick="sbSetFM('multi')">Multi-Day</button>
+    </div>
+    <!-- 6-hour slots -->
+    <div id="sb-mode-6hr">
+      <div id="sb-sixhr-grid"></div>
+    </div>
+    <!-- Daily -->
+    <div id="sb-mode-daily" style="display:none">
+      <div class="layer-grid" id="sb-daily-grid"></div>
+    </div>
+    <!-- Multi-day -->
+    <div id="sb-mode-multi" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;" id="sb-multi-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DATA READOUT -->
+<div class="panel-section">
+  <div class="section-label">Selected Point</div>
+  <div class="readout-card" id="readout-card">
+    <div class="readout-value no-data" id="readout-val">Click map</div>
+    <div class="readout-unit" id="readout-unit">— select a point to query</div>
+    <div class="readout-coords" id="readout-coords"></div>
+    <div class="readout-timestamp" id="readout-ts"></div>
+    <div class="rain-bar-wrap" id="rain-bar-wrap" style="display:none">
+      <div class="rain-bar">
+        <div class="rain-bar-fill" id="rain-bar-fill"></div>
+      </div>
+      <div class="rain-bar-labels" id="rain-bar-labels">
+        <span>0"</span><span>1"</span><span>3"</span><span>6"+</span>
       </div>
     </div>
-
-    <!-- DATA SOURCE -->
-    <div class="data-note">
-      Data: <a href="https://mrms.ncep.noaa.gov" target="_blank">NOAA MRMS</a> via
-      <a href="https://mesonet.agron.iastate.edu" target="_blank">Iowa Env. Mesonet</a> ·
-      WMS QPE near real-time
+    <div class="intensity-row" id="intensity-row" style="display:none">
+      <div class="intensity-dots" id="intensity-dots">
+        <div class="intensity-dot"></div>
+        <div class="intensity-dot"></div>
+        <div class="intensity-dot"></div>
+        <div class="intensity-dot"></div>
+        <div class="intensity-dot"></div>
+      </div>
+      <div class="intensity-label" id="intensity-label">TRACE</div>
     </div>
+    <div class="unit-toggle" id="unit-toggle" style="display:none">
+      <button class="unit-btn active" id="btn-in" onclick="setUnit('in')">inches</button>
+      <button class="unit-btn" id="btn-mm" onclick="setUnit('mm')">mm</button>
+    </div>
+  </div>
+</div>
+
+<!-- SAVED LOCATIONS -->
+<div class="panel-section" style="border-bottom:none;padding-bottom:8px;">
+  <div class="section-label">Saved Locations</div>
+</div>
+<div class="saved-list" id="saved-list"></div>
+<div style="padding:0 12px 10px;">
+  <button class="add-location-btn" id="add-loc-btn" onclick="promptSaveLocation()">
+    + Save current point
+  </button>
+</div>
+
+<!-- MOBILE MAP PREVIEW -->
+<div class="map-preview-section">
+  <div class="map-preview-label">Map</div>
+  <div class="map-preview-wrap" id="map-preview-wrap" onclick="openFullscreenMap()">
+    <div id="map-preview"></div>
+    <div class="map-preview-tap"><span>⛶ TAP FOR FULL MAP</span></div>
+  </div>
+</div>
+
+<!-- DATA SOURCE -->
+<div class="data-note">
+  Data: <a href="https://mrms.ncep.noaa.gov" target="_blank">NOAA MRMS</a> via
+  <a href="https://mesonet.agron.iastate.edu" target="_blank">Iowa Env. Mesonet</a> ·
+  WMS QPE near real-time
+</div>
+```
 
   </div>
 
   <!-- MAP -->
+
   <div id="map"></div>
   <div class="map-overlay map-top-bar">
     Click map to query · Right-click to save · Layer: <span id="layer-label">24hr QPE</span>
@@ -1193,26 +1145,15 @@
   </div>
 </div>
 
-
 <!-- MOBILE FULLSCREEN MAP -->
+
 <div class="map-fullscreen" id="map-fullscreen">
   <div id="map-fullscreen-inner"></div>
   <button class="map-fs-close" onclick="closeFullscreenMap()">✕ CLOSE</button>
   <div class="fs-layer-badge" id="fs-layer-badge">24hr QPE</div>
 
-  <!-- Radar loop controls -->
-  <div class="radar-controls" id="radar-controls">
-    <div class="radar-loop-top">
-      <button class="radar-play-btn" id="radar-play-btn" onclick="radarTogglePlay()">▶</button>
-      <span class="radar-timestamp" id="radar-timestamp">Loading…</span>
-      <span class="radar-frame-count" id="radar-frame-count"></span>
-    </div>
-    <input type="range" class="radar-slider" id="radar-slider" min="0" value="0" step="1"
-      oninput="radarSeek(parseInt(this.value))">
-    <div class="radar-loading" id="radar-loading">Fetching frames…</div>
-  </div>
-
   <!-- Layer picker pill -->
+
   <div class="fs-picker-wrap">
     <button class="fs-pill" id="fs-pill" onclick="toggleFsPicker()">
       <span style="display:flex;align-items:center;gap:7px;"><span style="font-size:13px">⬡</span><span class="fs-pill-label" id="fs-pill-label">24hr QPE</span></span>
@@ -1221,7 +1162,6 @@
     <div class="fs-picker-panel" id="fs-picker-panel">
       <div class="fs-tab-row">
         <button class="fs-tab obs-active" id="fs-tab-obs" onclick="fsPicker_setTab('obs')">⚡ Observed</button>
-        <button class="fs-tab" id="fs-tab-radar" onclick="fsPicker_setTab('radar')">📡 Radar</button>
         <button class="fs-tab" id="fs-tab-fcast" onclick="fsPicker_setTab('fcast')">Forecast</button>
       </div>
       <!-- Observed panel -->
@@ -1232,25 +1172,6 @@
           <button class="fs-lopt obs-sel" onclick="fsPicker_selObs(this,'mrms_p24h','24hr QPE')">24hr</button>
           <button class="fs-lopt" onclick="fsPicker_selObs(this,'mrms_p48h','48hr QPE')">48hr</button>
           <button class="fs-lopt" onclick="fsPicker_selObs(this,'mrms_p72h','72hr QPE')">72hr</button>
-        </div>
-      </div>
-      <!-- Radar panel -->
-      <div id="fs-radar-panel" style="display:none">
-        <div class="fs-sec-label">KTBW Tampa Bay · Live Radar</div>
-        <div class="fs-btn-grid3" style="margin-bottom:10px;">
-          <button class="fs-lopt obs-sel" id="fs-radar-ref" onclick="fsPicker_selRadar(this,'N0Q','Base Reflectivity')">
-            <div style="font-weight:600">Reflect</div><div class="fs-opt-sub">dBZ</div>
-          </button>
-          <button class="fs-lopt" id="fs-radar-vel" onclick="fsPicker_selRadar(this,'N0U','Base Velocity')">
-            <div style="font-weight:600">Velocity</div><div class="fs-opt-sub">kts</div>
-          </button>
-          <button class="fs-lopt" id="fs-radar-et" onclick="fsPicker_selRadar(this,'EET','Echo Tops')">
-            <div style="font-weight:600">Echo</div><div class="fs-opt-sub">Tops</div>
-          </button>
-        </div>
-        <div style="height:7px;border-radius:3px;background:linear-gradient(90deg,#04e9e7 0%,#019ff4 8%,#0300f4 16%,#02fd02 25%,#01c501 33%,#008e00 41%,#fdf802 50%,#e5bc00 58%,#fd9500 66%,#fd0000 75%,#d40000 83%,#f800fd 100%);margin-bottom:4px;"></div>
-        <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:8px;color:rgba(127,179,211,0.5)">
-          <span>5</span><span>20</span><span>35</span><span>50</span><span>65</span><span>75+</span>
         </div>
       </div>
       <!-- Forecast panel -->
@@ -1277,6 +1198,7 @@
   </div>
 
   <!-- Floating result card -->
+
   <div class="fs-result-card" id="fs-result-card">
     <div class="fs-result-querying" id="fs-result-querying">
       <div class="fs-spin"></div><span>Querying…</span>
@@ -1291,6 +1213,7 @@
 </div>
 
 <!-- CONTEXT MENU -->
+
 <div class="ctx-menu" id="ctx-menu">
   <div class="ctx-coords" id="ctx-coords"></div>
   <div class="ctx-item" onclick="ctxQuery()">⬡ Query rainfall here</div>
@@ -1298,6 +1221,7 @@
 </div>
 
 <!-- SAVE MODAL -->
+
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <div class="modal-title">Save Location</div>
@@ -1310,6 +1234,7 @@
 </div>
 
 <!-- TOAST -->
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1585,27 +1510,6 @@ async function queryRainfall(lat, lng) {
   state.lastValueIn = null;
 
   const isWpc = state.layer && state.layer.startsWith('__wpc__');
-  const isRadar = state.layer && state.layer.startsWith('__radar__');
-
-  // Radar mode — skip query, just show coords
-  if (isRadar) {
-    document.getElementById('querying-badge').classList.remove('show');
-    const val = document.getElementById('readout-val');
-    val.textContent = '📡';
-    val.className = 'readout-value no-data';
-    document.getElementById('readout-unit').textContent = 'radar · point query n/a';
-    document.getElementById('readout-coords').textContent =
-      lat.toFixed(4) + '°N  ' + Math.abs(lng).toFixed(4) + '°W';
-    document.getElementById('fs-result-querying').style.display = 'none';
-    document.getElementById('fs-result-body').style.display = 'block';
-    document.getElementById('fs-result-val').textContent = '📡';
-    document.getElementById('fs-result-sub').textContent = 'radar · query n/a';
-    document.getElementById('fs-result-coords').textContent =
-      lat.toFixed(4) + '°N  ' + Math.abs(lng).toFixed(4) + '°W';
-    const card = document.getElementById('fs-result-card');
-    if (card) card.classList.add('show');
-    return;
-  }
 
   // UI: loading state
   document.getElementById('querying-badge').classList.add('show');
@@ -1841,7 +1745,6 @@ function renderSavedRain() {
 
 // Fetch a single rainfall value for saved locations (returns inches or null)
 async function fetchRainfallValue(lat, lng) {
-  if (state.layer && state.layer.startsWith('__radar__')) return null;
   if (state.layer && state.layer.startsWith('__wpc__')) {
     return fetchWpcAtPoint(lat, lng, state.wpcLayerNum);
   }
@@ -2085,41 +1988,7 @@ document.addEventListener('click', (e) => {
 });
 
 const WMS_WPC = 'https://mapservices.weather.noaa.gov/vector/services/precip/wpc_qpf/MapServer/WMSServer';
-const WMS_RADAR_BASE = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/ridge.cgi?sector=TBW&prod=';
 
-// Switch radar product from sidebar
-function setRadarProduct(prod, label, btn) {
-  document.querySelectorAll('#sb-radar-panel .layer-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  state.layer = '__radar__' + prod;
-  state.layerLabel = label;
-  document.getElementById('layer-label').textContent = label;
-  const fsLbl = document.getElementById('fs-layer-badge');
-  if (fsLbl) fsLbl.textContent = label;
-  fsPicker_setLabel(label);
-  const ctrl = document.getElementById('radar-controls');
-  if (ctrl) ctrl.classList.add('visible');
-  radarInitLoop(prod);
-}
-
-function fsPicker_selRadar(btn, prod, label) {
-  document.querySelectorAll('#fs-radar-panel .fs-lopt').forEach(b => b.classList.remove('obs-sel'));
-  btn.classList.add('obs-sel');
-  state.layer = '__radar__' + prod;
-  state.layerLabel = label;
-  fsPicker_setLabel(label);
-  ['ref','vel','et'].forEach(k => {
-    const b = document.getElementById('radar-btn-'+k);
-    if (b) b.classList.remove('active');
-  });
-  const prodMap = {'N0Q':'ref','N0U':'vel','EET':'et'};
-  const sbBtn = document.getElementById('radar-btn-'+(prodMap[prod]||'ref'));
-  if (sbBtn) sbBtn.classList.add('active');
-  const ctrl = document.getElementById('radar-controls');
-  if (ctrl) ctrl.classList.add('visible');
-  radarInitLoop(prod);
-  setTimeout(toggleFsPicker, 130);
-}
 
 // WMS 6hr IDs confirmed from GetCapabilities: 13=00-06hr, 12=06-12hr, ... 1=72-78hr (reversed)
 // Slots go forward in time so: slot0(00-06hr)=13, slot1(06-12hr)=12, slot2(12-18hr)=11, etc.
@@ -2232,146 +2101,6 @@ function buildWpcSlots() {
 // Compute once at load
 const WPC_SLOTS = buildWpcSlots();
 
-// ─── RADAR LOOP ENGINE ────────────────────────────────────────────────────────
-// Uses IEM WMS-T (n0q-t.cgi) with TIME= parameter.
-// WMS-T finds nearest available scan automatically — no exact timestamps needed.
-// The sidebar also shows radar on the desktop map.
-
-const RADAR_SITE = 'TBW';
-const RADAR_LOOP_MINUTES = 60;
-const RADAR_INTERVAL_MS = 600;
-
-// WMS-T base — accepts TIME=YYYY-MM-DDTHH:MMZ, returns nearest scan
-const RADAR_WMST_BASE = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/n0q-t.cgi';
-
-let radarFrames = [];
-let radarCurrentFrame = 0;
-let radarPlaying = false;
-let radarPlayTimer = null;
-let radarActiveProd = 'N0Q';
-let radarLoopReady = false;
-let radarLayer = null; // single tracked layer — shared across both maps
-
-function radarFmtTimeET(utc) {
-  const et = new Date(utc.toLocaleString('en-US', {timeZone:'America/New_York'}));
-  const h = et.getHours(), m = et.getMinutes();
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h%12===0 ? 12 : h%12;
-  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  return days[et.getDay()] + ' ' + h12 + ':' + String(m).padStart(2,'0') + ' ' + ampm + ' ET';
-}
-
-function radarIsoUTC(utc) {
-  // Format as YYYY-MM-DDTHH:MMZ for WMS-T TIME parameter
-  return utc.getUTCFullYear() + '-' +
-    String(utc.getUTCMonth()+1).padStart(2,'0') + '-' +
-    String(utc.getUTCDate()).padStart(2,'0') + 'T' +
-    String(utc.getUTCHours()).padStart(2,'0') + ':' +
-    String(utc.getUTCMinutes()).padStart(2,'0') + 'Z';
-}
-
-// Which Leaflet map to target (fullscreen if open, else desktop)
-function radarTargetMap() {
-  const fs = document.getElementById('map-fullscreen');
-  if (fs && fs.classList.contains('open') && mobileFullMap) return mobileFullMap;
-  return map;
-}
-
-function radarRemoveLayer() {
-  if (radarLayer) {
-    try { map.removeLayer(radarLayer); } catch(e){}
-    try { if (mobileFullMap) mobileFullMap.removeLayer(radarLayer); } catch(e){}
-    radarLayer = null;
-  }
-}
-
-function radarApplyTime(utc) {
-  radarRemoveLayer();
-  const timeParam = radarIsoUTC(utc);
-  const targetMap = radarTargetMap();
-  radarLayer = L.tileLayer.wms(RADAR_WMST_BASE, {
-    layers: 'nexrad-n0q-wmst',
-    format: 'image/png',
-    transparent: true,
-    opacity: 0.85,
-    version: '1.1.1',
-    time: timeParam,
-    className: 'radar-tile',
-  }).addTo(targetMap);
-}
-
-function radarInitLoop(prod) {
-  radarActiveProd = prod;
-  radarLoopReady = false;
-  radarPlaying = false;
-  clearInterval(radarPlayTimer);
-  const playBtn = document.getElementById('radar-play-btn');
-  if (playBtn) playBtn.textContent = '▶';
-  const loadEl = document.getElementById('radar-loading');
-  const tsEl   = document.getElementById('radar-timestamp');
-  const cntEl  = document.getElementById('radar-frame-count');
-
-  // Build frame list: 5-min intervals over last 60 min
-  // WMS-T finds nearest scan so approximate times work fine
-  const now = new Date();
-  const baseMs = Math.floor(now.getTime() / (5*60000)) * (5*60000);
-  const frames = [];
-  const count = Math.floor(RADAR_LOOP_MINUTES / 5) + 1;
-  for (let i = count - 1; i >= 0; i--) {
-    const t = new Date(baseMs - i * 5 * 60000);
-    frames.push({ utc: t, label: radarFmtTimeET(t) });
-  }
-  radarFrames = frames;
-  radarCurrentFrame = frames.length - 1;
-
-  const slider = document.getElementById('radar-slider');
-  if (slider) { slider.max = frames.length - 1; slider.value = frames.length - 1; }
-  if (cntEl) cntEl.textContent = frames.length + ' frames';
-  if (tsEl)  tsEl.textContent  = frames[frames.length - 1].label;
-  if (loadEl) loadEl.textContent = '← drag to scrub  ▶ to animate';
-
-  // Show latest frame
-  radarApplyTime(frames[frames.length - 1].utc);
-  radarLoopReady = true;
-}
-
-function radarShowFrame(idx) {
-  const frame = radarFrames[idx];
-  if (!frame) return;
-  const tsEl  = document.getElementById('radar-timestamp');
-  const cntEl = document.getElementById('radar-frame-count');
-  const slider = document.getElementById('radar-slider');
-  if (tsEl)   tsEl.textContent   = frame.label;
-  if (cntEl)  cntEl.textContent  = (idx+1) + '/' + radarFrames.length;
-  if (slider) slider.value = idx;
-  radarApplyTime(frame.utc);
-}
-
-function radarTogglePlay() {
-  if (!radarLoopReady) return;
-  radarPlaying = !radarPlaying;
-  const btn = document.getElementById('radar-play-btn');
-  if (btn) btn.textContent = radarPlaying ? '⏸' : '▶';
-  if (radarPlaying) {
-    radarPlayTimer = setInterval(() => {
-      radarCurrentFrame = (radarCurrentFrame + 1) % radarFrames.length;
-      radarShowFrame(radarCurrentFrame);
-    }, RADAR_INTERVAL_MS);
-  } else {
-    clearInterval(radarPlayTimer);
-  }
-}
-
-function radarSeek(idx) {
-  if (!radarLoopReady) return;
-  radarCurrentFrame = parseInt(idx);
-  radarShowFrame(radarCurrentFrame);
-}
-
-// CSS filter to suppress low dBZ noise
-const radarStyle = document.createElement('style');
-radarStyle.textContent = '.leaflet-tile-pane .radar-tile { filter: saturate(3) contrast(1.6) brightness(1.1); }';
-document.head.appendChild(radarStyle);
 
 
 let fsPanelOpen = false;;
@@ -2394,18 +2123,9 @@ function fsPicker_setLabel(text) {
 function fsPicker_setTab(tab) {
   fsActiveTab = tab;
   document.getElementById('fs-obs-panel').style.display   = tab==='obs'   ? '' : 'none';
-  document.getElementById('fs-radar-panel').style.display = tab==='radar' ? '' : 'none';
-  document.getElementById('fs-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
+    document.getElementById('fs-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
   document.getElementById('fs-tab-obs').className   = 'fs-tab' + (tab==='obs'   ? ' obs-active'   : '');
-  document.getElementById('fs-tab-radar').className = 'fs-tab' + (tab==='radar' ? ' obs-active'   : '');
-  document.getElementById('fs-tab-fcast').className = 'fs-tab' + (tab==='fcast' ? ' fcast-active' : '');
-  if (tab !== 'radar') {
-    const ctrl = document.getElementById('radar-controls');
-    if (ctrl) ctrl.classList.remove('visible');
-    radarPlaying = false;
-    clearInterval(radarPlayTimer);
-    radarRemoveLayer();
-  }
+    document.getElementById('fs-tab-fcast').className = 'fs-tab' + (tab==='fcast' ? ' fcast-active' : '');
 }
 
 function fsPicker_setFM(mode) {
@@ -2469,21 +2189,9 @@ function _applyWmsLayer(wmsUrl, layerName) {
 
 function sbSetTab(tab) {
   document.getElementById('sb-obs-panel').style.display   = tab==='obs'   ? '' : 'none';
-  document.getElementById('sb-radar-panel').style.display = tab==='radar' ? '' : 'none';
-  document.getElementById('sb-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
+    document.getElementById('sb-fcast-panel').style.display = tab==='fcast' ? '' : 'none';
   document.getElementById('sb-tab-obs').classList.toggle('active',   tab==='obs');
-  document.getElementById('sb-tab-radar').classList.toggle('active', tab==='radar');
-  document.getElementById('sb-tab-fcast').classList.toggle('active', tab==='fcast');
-  // Hide radar loop controls when leaving radar
-  if (tab !== 'radar') {
-    const ctrl = document.getElementById('radar-controls');
-    if (ctrl) ctrl.classList.remove('visible');
-    radarPlaying = false;
-    clearInterval(radarPlayTimer);
-    const btn = document.getElementById('radar-play-btn');
-    if (btn) btn.textContent = '▶';
-    radarRemoveLayer();
-  }
+    document.getElementById('sb-tab-fcast').classList.toggle('active', tab==='fcast');
 }
 
 function sbSetFM(mode) {
@@ -2618,5 +2326,6 @@ function sbSelFcast(btn, wmsUrl, layerNum, label) {
   });
 })();
 </script>
+
 </body>
 </html>
