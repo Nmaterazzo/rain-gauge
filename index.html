@@ -926,6 +926,21 @@
 
   .data-note a { color: var(--accent); text-decoration: none; }
   .data-note a:hover { text-decoration: underline; }
+
+  .refresh-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .refresh-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .refresh-btn.spinning { color: var(--accent); border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -1012,7 +1027,10 @@
 
     <!-- SAVED LOCATIONS -->
     <div class="panel-section" style="border-bottom:none;padding-bottom:8px;">
-      <div class="section-label">Saved Locations</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="section-label" style="margin-bottom:0;">Saved Locations</div>
+        <button class="refresh-btn" id="refresh-btn" onclick="manualRefresh()">&#x21BB; REFRESH</button>
+      </div>
     </div>
     <div class="saved-list" id="saved-list"></div>
     <div style="padding:0 12px 10px;">
@@ -1612,6 +1630,27 @@ async function fetchRainfallValue(lat, lng) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// ─── MANUAL REFRESH ───────────────────────────────────────────────────────────
+async function manualRefresh() {
+  const btn = document.getElementById('refresh-btn');
+  if (btn) { btn.classList.add('spinning'); btn.textContent = '↻ ...'; }
+  // Reload WMS tiles
+  addWmsLayer();
+  if (mobilePreviewMap) {
+    mobilePreviewMap.eachLayer(l => { if (l.options && l.options.layers) mobilePreviewMap.removeLayer(l); });
+    L.tileLayer.wms(WMS_BASE, { layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1' }).addTo(mobilePreviewMap);
+  }
+  if (mobileFullMap && state.wmsLayerMobile) {
+    mobileFullMap.removeLayer(state.wmsLayerMobile);
+    state.wmsLayerMobile = L.tileLayer.wms(WMS_BASE, { layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1' }).addTo(mobileFullMap);
+  }
+  // Re-query saved locations
+  await loadSavedRain();
+  // Re-query selected point
+  if (state.selectedLat !== null) await queryRainfall(state.selectedLat, state.selectedLng);
+  if (btn) { btn.classList.remove('spinning'); btn.innerHTML = '&#x21BB; REFRESH'; }
+}
+
 function renderSaved() {
   const list = document.getElementById('saved-list');
   list.innerHTML = '';
@@ -1642,22 +1681,11 @@ function renderSaved() {
       </div>
     `;
     div.addEventListener('click', () => {
+      map.setView([loc.lat, loc.lng], 10, { animate: true });
+      placeMarker(loc.lat, loc.lng);
+      queryRainfall(loc.lat, loc.lng);
       document.querySelectorAll('.saved-item').forEach(el => el.classList.remove('active'));
       div.classList.add('active');
-      if (isMobile()) {
-        // On mobile: open fullscreen map and fly to location
-        openFullscreenMap();
-        setTimeout(() => {
-          if (mobileFullMap) {
-            mobileFullMap.setView([loc.lat, loc.lng], 11, { animate: true });
-          }
-          queryRainfall(loc.lat, loc.lng);
-        }, 300); // wait for map to init/open
-      } else {
-        map.setView([loc.lat, loc.lng], 10, { animate: true });
-        placeMarker(loc.lat, loc.lng);
-        queryRainfall(loc.lat, loc.lng);
-      }
     });
     list.appendChild(div);
   });
@@ -1733,33 +1761,6 @@ if (state.savedLocations.length === 0) {
 }
 
 renderSaved();
-
-// ─── AUTO-REFRESH ────────────────────────────────────────────────────────────
-// Every 5 minutes: silently reload the WMS layer and re-query saved locations.
-// The WMS layer reload forces new tiles (busts cache via timestamp param).
-const AUTO_REFRESH_MS = 5 * 60 * 1000;
-
-function silentRefresh() {
-  // Reload WMS layer with cache-bust
-  addWmsLayer();
-  if (mobilePreviewMap) {
-    mobilePreviewMap.eachLayer(l => { if (l.options && l.options.layers) mobilePreviewMap.removeLayer(l); });
-    L.tileLayer.wms(WMS_BASE, { layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1' }).addTo(mobilePreviewMap);
-  }
-  if (mobileFullMap && state.wmsLayerMobile) {
-    mobileFullMap.removeLayer(state.wmsLayerMobile);
-    state.wmsLayerMobile = L.tileLayer.wms(WMS_BASE, { layers: state.layer, format: 'image/png', transparent: true, opacity: 0.70, version: '1.1.1' }).addTo(mobileFullMap);
-  }
-  // Re-query saved locations silently
-  loadSavedRain();
-  // Re-query selected point if one exists
-  if (state.selectedLat !== null) queryRainfall(state.selectedLat, state.selectedLng);
-  // Flash the live dot to indicate refresh
-  const dot = document.querySelector('.live-dot');
-  if (dot) { dot.style.background = 'var(--accent)'; setTimeout(() => { dot.style.background = 'var(--accent2)'; }, 1000); }
-}
-
-setInterval(silentRefresh, AUTO_REFRESH_MS);
 
 
 // ─── MOBILE MAP ────────────────────────────────────────────────────────────────
