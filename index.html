@@ -1036,30 +1036,11 @@
 
       <!-- Radar panel -->
       <div id="sb-radar-panel" style="display:none">
-        <div class="section-label" style="margin-bottom:8px;">KTBW Tampa Bay · Live</div>
-        <div class="layer-grid">
-          <button class="layer-btn active" id="radar-btn-ref" onclick="setRadarProduct('N0Q','Base Reflectivity',this)">
-            <span class="lb-period" style="font-size:11px">Reflect</span>dBZ
-          </button>
-          <button class="layer-btn" id="radar-btn-vel" onclick="setRadarProduct('N0U','Base Velocity',this)">
-            <span class="lb-period" style="font-size:11px">Velocity</span>kts
-          </button>
-          <button class="layer-btn" id="radar-btn-et" onclick="setRadarProduct('EET','Echo Tops',this)">
-            <span class="lb-period" style="font-size:11px">Echo</span>Tops
-          </button>
-        </div>
-        <div style="margin-top:10px;padding:8px;background:var(--panel2);border-radius:6px;border:1px solid var(--border)">
-          <div class="section-label" style="margin-bottom:6px;">Reflectivity Scale (dBZ)</div>
-          <div style="height:8px;border-radius:4px;background:linear-gradient(90deg,
-            #04e9e7 0%,#019ff4 8%,#0300f4 16%,#02fd02 25%,#01c501 33%,#008e00 41%,
-            #fdf802 50%,#e5bc00 58%,#fd9500 66%,#fd0000 75%,#d40000 83%,#bc0000 91%,#f800fd 100%
-          );margin-bottom:4px;"></div>
-          <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:8px;color:var(--text-dim)">
-            <span>5</span><span>20</span><span>35</span><span>50</span><span>65</span><span>75+</span>
-          </div>
-          <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-dim);margin-top:4px;opacity:0.6">
-            Updates every ~4–6 min · KTBW Tampa
-          </div>
+        <div class="section-label" style="margin-bottom:6px;">NEXRAD</div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;">Live base reflectivity · Updates every ~5 min</div>
+        <div style="height:8px;border-radius:4px;background:linear-gradient(90deg,#04e9e7 0%,#019ff4 8%,#0300f4 16%,#02fd02 25%,#01c501 33%,#008e00 41%,#fdf802 50%,#e5bc00 58%,#fd9500 66%,#fd0000 75%,#d40000 83%,#bc0000 91%,#f800fd 100%);margin-bottom:4px;"></div>
+        <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:8px;color:var(--text-dim)">
+          <span>5</span><span>20</span><span>35</span><span>50</span><span>65</span><span>75+ dBZ</span>
         </div>
       </div>
 
@@ -1198,21 +1179,23 @@
       </div>
       <!-- Radar panel -->
       <div id="fs-radar-panel" style="display:none">
-        <div class="fs-sec-label">KTBW Tampa Bay · Live Radar</div>
-        <div class="fs-btn-grid3" style="margin-bottom:10px;">
-          <button class="fs-lopt obs-sel" id="fs-radar-ref" onclick="fsPicker_selRadar(this,'N0Q','Base Reflectivity')">
-            <div style="font-weight:600">Reflect</div><div class="fs-opt-sub">dBZ</div>
-          </button>
-          <button class="fs-lopt" id="fs-radar-vel" onclick="fsPicker_selRadar(this,'N0U','Base Velocity')">
-            <div style="font-weight:600">Velocity</div><div class="fs-opt-sub">kts</div>
-          </button>
-          <button class="fs-lopt" id="fs-radar-et" onclick="fsPicker_selRadar(this,'EET','Echo Tops')">
-            <div style="font-weight:600">Echo</div><div class="fs-opt-sub">Tops</div>
-          </button>
+        <div class="fs-sec-label">NEXRAD · ANIMATED LOOP</div>
+        <div style="font-family:'DM Mono',monospace;font-size:9px;color:rgba(127,179,211,0.6);margin-bottom:10px;">Last 50 min · 5-min frames</div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(79,195,247,0.12);border-radius:8px;padding:10px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <button onclick="radarTogglePlay()" id="radar-play-btn" style="background:rgba(0,212,255,0.15);border:1px solid #00d4ff;color:#00d4ff;border-radius:5px;padding:5px 14px;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer;min-width:42px;">&#9654;</button>
+            <span id="radar-timestamp" style="font-family:'DM Mono',monospace;font-size:10px;color:#a0c8e0;letter-spacing:0.05em;">Now</span>
+          </div>
+          <input type="range" id="radar-slider" min="0" max="10" value="10"
+            oninput="radarSeek(parseInt(this.value))"
+            style="width:100%;accent-color:#00d4ff;cursor:pointer;">
+          <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:8px;color:rgba(127,179,211,0.4);margin-top:4px;">
+            <span>50 min ago</span><span>Now</span>
+          </div>
         </div>
-        <div style="height:7px;border-radius:3px;background:linear-gradient(90deg,#04e9e7 0%,#019ff4 8%,#0300f4 16%,#02fd02 25%,#01c501 33%,#008e00 41%,#fdf802 50%,#e5bc00 58%,#fd9500 66%,#fd0000 75%,#d40000 83%,#f800fd 100%);margin-bottom:4px;"></div>
+        <div style="height:7px;border-radius:3px;background:linear-gradient(90deg,#04e9e7 0%,#019ff4 8%,#0300f4 16%,#02fd02 25%,#01c501 33%,#008e00 41%,#fdf802 50%,#e5bc00 58%,#fd9500 66%,#fd0000 75%,#d40000 83%,#bc0000 91%,#f800fd 100%);margin-bottom:4px;"></div>
         <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:8px;color:rgba(127,179,211,0.5)">
-          <span>5</span><span>20</span><span>35</span><span>50</span><span>65</span><span>75+</span>
+          <span>5</span><span>20</span><span>35</span><span>50</span><span>65</span><span>75+ dBZ</span>
         </div>
       </div>
       <!-- Forecast panel -->
@@ -2047,40 +2030,98 @@ document.addEventListener('click', (e) => {
 });
 
 const WMS_WPC = 'https://mapservices.weather.noaa.gov/vector/services/precip/wpc_qpf/MapServer/WMSServer';
-const WMS_RADAR_BASE = 'https://mesonet.agron.iastate.edu/cgi-bin/wms/nexrad/ridge.cgi?sector=TBW&prod=';
+// ─── NEXRAD ANIMATED TILE ENGINE ─────────────────────────────────────────────
+// IEM tile.py slippy-map tiles — proper Leaflet tileLayer, no WMS, no CORS.
+// Timestamps: 900913-m50m through 900913 (current). Updates every ~5 min.
+const RADAR_TIMESTAMPS = [
+  '900913-m50m','900913-m45m','900913-m40m','900913-m35m','900913-m30m',
+  '900913-m25m','900913-m20m','900913-m15m','900913-m10m','900913-m05m','900913'
+];
+const RADAR_LABELS = [
+  '50 min ago','45 min ago','40 min ago','35 min ago','30 min ago',
+  '25 min ago','20 min ago','15 min ago','10 min ago','5 min ago','Now'
+];
+const RADAR_INTERVAL_MS = 600;
 
-// Switch radar product from sidebar
-function setRadarProduct(prod, label, btn) {
-  document.querySelectorAll('#sb-radar-panel .layer-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const wmsUrl = WMS_RADAR_BASE + prod;
-  state.layer = '__radar__' + prod;
-  state.layerLabel = label;
-  document.getElementById('layer-label').textContent = label;
-  const fsLbl = document.getElementById('fs-layer-badge');
-  if (fsLbl) fsLbl.textContent = label;
-  fsPicker_setLabel(label);
-  _applyWmsLayer(wmsUrl, 'single');
+let radarCurrentFrame = RADAR_TIMESTAMPS.length - 1;
+let radarPlaying = false;
+let radarPlayTimer = null;
+let radarTileDesktop = null;
+let radarTileMobile = null;
+
+function radarTileUrl(ts) {
+  return 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-' + ts + '/{z}/{x}/{y}.png';
 }
 
-// Switch radar product from fullscreen picker
-function fsPicker_selRadar(btn, prod, label) {
-  document.querySelectorAll('#fs-radar-panel .fs-lopt').forEach(b => b.classList.remove('obs-sel'));
-  btn.classList.add('obs-sel');
-  const wmsUrl = WMS_RADAR_BASE + prod;
-  state.layer = '__radar__' + prod;
-  state.layerLabel = label;
-  fsPicker_setLabel(label);
-  _applyWmsLayer(wmsUrl, 'single');
-  // Also sync sidebar radar button
-  ['ref','vel','et'].forEach(k => {
-    const sbBtn = document.getElementById('radar-btn-'+k);
-    if (sbBtn) sbBtn.classList.remove('active');
-  });
-  const prodMap = {'N0Q':'ref','N0U':'vel','EET':'et'};
-  const sbBtn = document.getElementById('radar-btn-'+(prodMap[prod]||'ref'));
-  if (sbBtn) sbBtn.classList.add('active');
-  setTimeout(toggleFsPicker, 130);
+function radarRemoveLayer() {
+  if (radarTileDesktop) { try { map.removeLayer(radarTileDesktop); } catch(e){} radarTileDesktop = null; }
+  if (radarTileMobile)  { try { if (mobileFullMap) mobileFullMap.removeLayer(radarTileMobile); } catch(e){} radarTileMobile = null; }
+}
+
+function radarApplyFrame(frameIdx) {
+  const url = radarTileUrl(RADAR_TIMESTAMPS[frameIdx]);
+  // Remove previous radar tiles
+  if (radarTileDesktop) { try { map.removeLayer(radarTileDesktop); } catch(e){} }
+  if (radarTileMobile)  { try { if (mobileFullMap) mobileFullMap.removeLayer(radarTileMobile); } catch(e){} }
+  // Add new tiles
+  radarTileDesktop = L.tileLayer(url, { opacity: 0.85, zIndex: 300 }).addTo(map);
+  if (mobileFullMap) {
+    radarTileMobile = L.tileLayer(url, { opacity: 0.85, zIndex: 300 }).addTo(mobileFullMap);
+  }
+  // Update controls
+  const tsEl = document.getElementById('radar-timestamp');
+  const slEl = document.getElementById('radar-slider');
+  if (tsEl) tsEl.textContent = RADAR_LABELS[frameIdx];
+  if (slEl) slEl.value = frameIdx;
+}
+
+// Called when sidebar Radar tab is selected — show live frame, no animation
+function radarShowLive() {
+  radarStop();
+  // Remove any existing WMS layer
+  if (state.wmsLayer) { try { map.removeLayer(state.wmsLayer); } catch(e){} state.wmsLayer = null; }
+  if (state.wmsLayerMobile) { try { if (mobileFullMap) mobileFullMap.removeLayer(state.wmsLayerMobile); } catch(e){} state.wmsLayerMobile = null; }
+  state.layer = '__radar__';
+  state.layerLabel = 'NEXRAD';
+  document.getElementById('layer-label').textContent = 'NEXRAD';
+  fsPicker_setLabel('NEXRAD');
+  const fsLbl = document.getElementById('fs-layer-badge');
+  if (fsLbl) fsLbl.textContent = 'NEXRAD';
+  radarCurrentFrame = RADAR_TIMESTAMPS.length - 1;
+  radarApplyFrame(radarCurrentFrame);
+}
+
+// Called when fullscreen picker Radar tab selected — init slider + show live
+function radarInitLoop() {
+  radarShowLive();
+  const slEl = document.getElementById('radar-slider');
+  if (slEl) { slEl.max = RADAR_TIMESTAMPS.length - 1; slEl.value = radarCurrentFrame; }
+}
+
+function radarTogglePlay() {
+  radarPlaying = !radarPlaying;
+  const btn = document.getElementById('radar-play-btn');
+  if (btn) btn.innerHTML = radarPlaying ? '&#9646;&#9646;' : '&#9654;';
+  if (radarPlaying) {
+    radarPlayTimer = setInterval(() => {
+      radarCurrentFrame = (radarCurrentFrame + 1) % RADAR_TIMESTAMPS.length;
+      radarApplyFrame(radarCurrentFrame);
+    }, RADAR_INTERVAL_MS);
+  } else {
+    clearInterval(radarPlayTimer);
+  }
+}
+
+function radarSeek(idx) {
+  radarCurrentFrame = idx;
+  radarApplyFrame(idx);
+}
+
+function radarStop() {
+  radarPlaying = false;
+  clearInterval(radarPlayTimer);
+  const btn = document.getElementById('radar-play-btn');
+  if (btn) btn.innerHTML = '&#9654;';
 }
 
 // WMS 6hr IDs confirmed from GetCapabilities: 13=00-06hr, 12=06-12hr, ... 1=72-78hr (reversed)
@@ -2221,6 +2262,12 @@ function fsPicker_setTab(tab) {
   document.getElementById('fs-tab-obs').className   = 'fs-tab' + (tab==='obs'   ? ' obs-active'   : '');
   document.getElementById('fs-tab-radar').className = 'fs-tab' + (tab==='radar' ? ' obs-active'   : '');
   document.getElementById('fs-tab-fcast').className = 'fs-tab' + (tab==='fcast' ? ' fcast-active' : '');
+  if (tab === 'radar') {
+    radarInitLoop();
+  } else {
+    radarStop();
+    radarRemoveLayer();
+  }
 }
 
 function fsPicker_setFM(mode) {
@@ -2289,6 +2336,12 @@ function sbSetTab(tab) {
   document.getElementById('sb-tab-obs').classList.toggle('active',   tab==='obs');
   document.getElementById('sb-tab-radar').classList.toggle('active', tab==='radar');
   document.getElementById('sb-tab-fcast').classList.toggle('active', tab==='fcast');
+  if (tab === 'radar') {
+    radarShowLive();
+  } else {
+    radarStop();
+    radarRemoveLayer();
+  }
 }
 
 function sbSetFM(mode) {
