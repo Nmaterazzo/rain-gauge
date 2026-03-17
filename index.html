@@ -2030,9 +2030,9 @@ document.addEventListener('click', (e) => {
 });
 
 const WMS_WPC = 'https://mapservices.weather.noaa.gov/vector/services/precip/wpc_qpf/MapServer/WMSServer';
-// ─── NEXRAD ANIMATED TILE ENGINE ─────────────────────────────────────────────
-// IEM tile.py slippy-map tiles — proper Leaflet tileLayer, no WMS, no CORS.
-// Timestamps: 900913-m50m through 900913 (current). Updates every ~5 min.
+// ─── NEXRAD ANIMATED TILE ENGINE (preloaded) ─────────────────────────────────
+// All 11 frames are added to the map at opacity 0 on init.
+// Playback just flips opacity — no add/remove = no flicker.
 const RADAR_TIMESTAMPS = [
   '900913-m50m','900913-m45m','900913-m40m','900913-m35m','900913-m30m',
   '900913-m25m','900913-m20m','900913-m15m','900913-m10m','900913-m05m','900913'
@@ -2046,28 +2046,48 @@ const RADAR_INTERVAL_MS = 600;
 let radarCurrentFrame = RADAR_TIMESTAMPS.length - 1;
 let radarPlaying = false;
 let radarPlayTimer = null;
-let radarTileDesktop = null;
-let radarTileMobile = null;
+let radarLayersDesktop = [];  // one tileLayer per frame, desktop
+let radarLayersMobile  = [];  // one tileLayer per frame, fullscreen
+let radarLoaded = false;
 
 function radarTileUrl(ts) {
   return 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-' + ts + '/{z}/{x}/{y}.png';
 }
 
 function radarRemoveLayer() {
-  if (radarTileDesktop) { try { map.removeLayer(radarTileDesktop); } catch(e){} radarTileDesktop = null; }
-  if (radarTileMobile)  { try { if (mobileFullMap) mobileFullMap.removeLayer(radarTileMobile); } catch(e){} radarTileMobile = null; }
+  radarStop();
+  radarLayersDesktop.forEach(l => { try { map.removeLayer(l); } catch(e){} });
+  radarLayersMobile.forEach(l => { try { if (mobileFullMap) mobileFullMap.removeLayer(l); } catch(e){} });
+  radarLayersDesktop = [];
+  radarLayersMobile  = [];
+  radarLoaded = false;
 }
 
-function radarApplyFrame(frameIdx) {
-  const url = radarTileUrl(RADAR_TIMESTAMPS[frameIdx]);
-  // Remove previous radar tiles
-  if (radarTileDesktop) { try { map.removeLayer(radarTileDesktop); } catch(e){} }
-  if (radarTileMobile)  { try { if (mobileFullMap) mobileFullMap.removeLayer(radarTileMobile); } catch(e){} }
-  // Add new tiles
-  radarTileDesktop = L.tileLayer(url, { opacity: 0.85, zIndex: 300 }).addTo(map);
-  if (mobileFullMap) {
-    radarTileMobile = L.tileLayer(url, { opacity: 0.85, zIndex: 300 }).addTo(mobileFullMap);
-  }
+function radarPreload() {
+  // Remove any old layers first
+  radarLayersDesktop.forEach(l => { try { map.removeLayer(l); } catch(e){} });
+  radarLayersMobile.forEach(l => { try { if (mobileFullMap) mobileFullMap.removeLayer(l); } catch(e){} });
+  radarLayersDesktop = [];
+  radarLayersMobile  = [];
+
+  RADAR_TIMESTAMPS.forEach((ts, i) => {
+    const url = radarTileUrl(ts);
+    const opacity = (i === radarCurrentFrame) ? 0.85 : 0;
+    const ld = L.tileLayer(url, { opacity, zIndex: 300 }).addTo(map);
+    radarLayersDesktop.push(ld);
+    if (mobileFullMap) {
+      const lm = L.tileLayer(url, { opacity, zIndex: 300 }).addTo(mobileFullMap);
+      radarLayersMobile.push(lm);
+    }
+  });
+  radarLoaded = true;
+}
+
+function radarShowFrame(frameIdx) {
+  // Hide all, show only active frame
+  radarLayersDesktop.forEach((l, i) => l.setOpacity(i === frameIdx ? 0.85 : 0));
+  radarLayersMobile.forEach((l, i)  => l.setOpacity(i === frameIdx ? 0.85 : 0));
+  radarCurrentFrame = frameIdx;
   // Update controls
   const tsEl = document.getElementById('radar-timestamp');
   const slEl = document.getElementById('radar-slider');
@@ -2088,10 +2108,11 @@ function radarShowLive() {
   const fsLbl = document.getElementById('fs-layer-badge');
   if (fsLbl) fsLbl.textContent = 'NEXRAD';
   radarCurrentFrame = RADAR_TIMESTAMPS.length - 1;
-  radarApplyFrame(radarCurrentFrame);
+  radarPreload();
+  radarShowFrame(radarCurrentFrame);
 }
 
-// Called when fullscreen picker Radar tab selected — init slider + show live
+// Called when fullscreen picker Radar tab selected — init slider + preload
 function radarInitLoop() {
   radarShowLive();
   const slEl = document.getElementById('radar-slider');
@@ -2104,8 +2125,7 @@ function radarTogglePlay() {
   if (btn) btn.innerHTML = radarPlaying ? '&#9646;&#9646;' : '&#9654;';
   if (radarPlaying) {
     radarPlayTimer = setInterval(() => {
-      radarCurrentFrame = (radarCurrentFrame + 1) % RADAR_TIMESTAMPS.length;
-      radarApplyFrame(radarCurrentFrame);
+      radarShowFrame((radarCurrentFrame + 1) % RADAR_TIMESTAMPS.length);
     }, RADAR_INTERVAL_MS);
   } else {
     clearInterval(radarPlayTimer);
@@ -2113,8 +2133,7 @@ function radarTogglePlay() {
 }
 
 function radarSeek(idx) {
-  radarCurrentFrame = idx;
-  radarApplyFrame(idx);
+  radarShowFrame(idx);
 }
 
 function radarStop() {
